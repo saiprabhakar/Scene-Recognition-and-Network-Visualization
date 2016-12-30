@@ -20,13 +20,23 @@ fileName = 'data/imagelist.txt'
 #to test toggle only train
 train = 0
 visu = 1
+#tech = 'grad'
+tech = 'occ'
 
-#load appropriate model while testing
-pretrainedSiameseModel = 'modifiedNetResults/Modified-netsize-1000-epoch-4-tstamp--Timestamp-2016-12-23-05:23:20-net-final.caffemodel'
-#pretrainedSiameseModel = None
-
-testProto = 'modifiedSiameseModels/extracted_siamesePlaces_' + str(
-    netSize) + '_test.prototxt'
+if visu == 1:
+    #load appropriate model while testing
+    pretrainedSiameseModel = 'modifiedNetResults/Modified-netsize-1000-epoch-4-tstamp--Timestamp-2016-12-23-05:23:20-net-final.caffemodel'
+    if tech == 'occ':
+        testProto = 'modifiedSiameseModels/extracted_siamesePlaces_' + str(
+            netSize) + '_test.prototxt'
+    elif tech == 'grad':
+        #needs force gradient line in the prototxt file
+        testProto = 'modifiedSiameseModels/grad_visu_extracted_siamesePlaces_' + str(
+            netSize) + '_test.prototxt'
+else:
+    tech = None
+    testProto = None
+    pretrainedSiameseModel = None
 
 siameseTrainer(
     siameseSolver=siameseSolver,
@@ -37,4 +47,5 @@ siameseTrainer(
     testProto=testProto,
     train=train,
     visu=visu,
+    viz_tech=tech,
     netSize=netSize)
