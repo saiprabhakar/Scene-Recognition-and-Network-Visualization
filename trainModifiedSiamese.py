@@ -20,6 +20,8 @@ fileName = 'data/imagelist.txt'
 #to test toggle only train
 train = 0
 visu = 1
+
+#specify the technique used to visualize the network
 #tech = 'grad'
 tech = 'occ'
 

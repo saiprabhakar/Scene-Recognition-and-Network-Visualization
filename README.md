@@ -28,7 +28,9 @@ Methods implemented:
     python trainModifiedSiamese.py
     ~~~
 
-    ![Modified Siamese net](modified_siamese1.png )
+    ![Modified Siamese net (training net)](modified_siamese1.png )
+
+    During test time a single branch with a softmax final layer is used with the trained weights.
 
 trainSiamese.py or trainModifiedSiamese.py
 ----
@@ -42,5 +44,5 @@ Aim is to visualize what parts of the image are important for the classification
 
 Methods considered:
 
-  1. Occulsion heat map
-  2. ...
+  1. Occulsion heat map (siamese and modified siamese net)
+  2. Class Saliency map (modified siamese net)
