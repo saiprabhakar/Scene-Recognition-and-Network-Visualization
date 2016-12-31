@@ -32,7 +32,10 @@ class SiameseTrainWrapper(object):
                  pretrained_model_proto=None,
                  testProto=None,
                  train=1,
+                 testProto1=None,
                  netSize=1000,
+                 visu=0,
+                 tech=None,
                  class_size=6,
                  class_adju=2):
         """Initialize the SolverWrapper."""
@@ -45,6 +48,7 @@ class SiameseTrainWrapper(object):
         self.class_adju = class_adju
         self.data_folder = 'data/'
         self.im_target_size = 227
+        self.viz_tech = tech
         self.meanarr = h2._load_mean_binaryproto(
             fileName='placesOriginalModel/places205CNN_mean.binaryproto',
             im_target_size=self.im_target_size)
@@ -66,9 +70,25 @@ class SiameseTrainWrapper(object):
                 print('Initializing completely from scratch .... really ?')
 
             self.solver.test_nets[0].share_with(self.solver.net)
+        elif visu == 1:
+            assert testProto != None
+            assert pretrainedSiameseModel != None
+            if self.viz_tech == 'occ' or self.viz_tech == 'both':
+                self.siameseTestNet = caffe.Net(
+                    testProto, pretrainedSiameseModel, caffe.TEST)
+            if self.viz_tech == 'grad':
+                self.siameseTestNet_grad = caffe.Net(
+                    testProto, pretrainedSiameseModel, caffe.TEST)
+            if self.viz_tech == 'both':
+                assert testProto1 != None
+                self.siameseTestNet_grad = caffe.Net(
+                    testProto1, pretrainedSiameseModel, caffe.TEST)
         else:
+            assert testProto != None
+            assert pretrainedSiameseModel != None
             self.siameseTestNet = caffe.Net(testProto, pretrainedSiameseModel,
                                             caffe.TEST)
+            print "testing Not implemented"
 
     def trainTest(self):
         #self.solver.test_nets[0].forward()
@@ -236,7 +256,7 @@ class SiameseTrainWrapper(object):
         self.solver.net.save(preName + '-net-final.caffemodel')
         plt.close('all')
 
-    def visualize(self, fileName, tech):
+    def visualize(self, fileName, tech, compare):
         ''' Visualizing using gray occlusion patches or gradients of input image
         '''
         tStamp = '-Timestamp-{:%Y-%m-%d-%H:%M:%S}'.format(
@@ -291,7 +311,7 @@ class SiameseTrainWrapper(object):
 
                 im_gen_grad, heat_map_grad, heat_map_raw_grad = self.generate_heat_map_gradients(
                     imageDict, imlist, im1, ratio=highlighted_ratio)
-                preName = 'modifiedNetResults_visu_grad/' + imlist[
+                preName_grad = 'modifiedNetResults_visu_grad/' + imlist[
                     im1] + '-' + '-M-nSize-' + str(
                         self.netSize) + '-tstamp-' + tStamp
 
@@ -302,16 +322,19 @@ class SiameseTrainWrapper(object):
                     size_patch,
                     stride,
                     ratio=highlighted_ratio)
-                preName = 'modifiedNetResults_visu_occ/' + imlist[
+                preName_occ = 'modifiedNetResults_visu_occ/' + imlist[
                     im1] + '-' + str(size_patch) + '-' + str(
                         stride) + '-' + '-M-nSize-' + str(
                             self.netSize) + '-tstamp-' + tStamp
                 save = 0
                 if save == 1:
-                    cv2.imwrite(preName + '.png', im_gen_grad)
-                    cv2.imwrite(preName + '.png', im_gen_occ)
-                import IPython
-                IPython.embed()
+
+                    cv2.imwrite(preName_grad + '.png', im_gen_grad)
+                    cv2.imwrite(preName_occ + '.png', im_gen_occ)
+                #code for comparision
+                if compare == 1:
+                    import IPython
+                    IPython.embed()
 
     def generate_heat_map_softmax(self,
                                   imageDict,
@@ -392,10 +415,10 @@ class SiameseTrainWrapper(object):
         caffeLabel = np.zeros((1, self.class_size))
         caffeLabel[0, label_index] = 1
 
-        pred = self.siameseTestNet.forward(data=blobs['data'].astype(
+        pred = self.siameseTestNet_grad.forward(data=blobs['data'].astype(
             np.float32, copy=True))
-        bw = self.siameseTestNet.backward(
-            **{self.siameseTestNet.outputs[0]: caffeLabel})  #
+        bw = self.siameseTestNet_grad.backward(
+            **{self.siameseTestNet_grad.outputs[0]: caffeLabel})  #
         diff = bw['data'].copy()
 
         # Find the saliency map as described in the paper. Normalize the map and assign it to variabe "saliency"
@@ -441,7 +464,9 @@ def siameseTrainer(siameseSolver,
                    pretrained_model_proto,
                    train=1,
                    visu=0,
+                   testProto1=None,
                    viz_tech=None,
+                   compare=0,
                    netSize=1000):
     #numImagePair = 1  #len(imdb.image_index)
     # timers
@@ -453,7 +478,10 @@ def siameseTrainer(siameseSolver,
         pretrained_model=pretrained_model,
         pretrained_model_proto=pretrained_model_proto,
         testProto=testProto,
+        testProto1=testProto1,
         train=train,
+        visu=visu,
+        tech=viz_tech,
         netSize=netSize)
     if train == 1:
         print "training"
@@ -463,4 +491,4 @@ def siameseTrainer(siameseSolver,
         sw.test(fileName)
     else:
         print 'visalizing with ', pretrainedSiameseModel
-        sw.visualize(fileName, tech=viz_tech)
+        sw.visualize(fileName, tech=viz_tech, compare=compare)
