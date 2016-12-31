@@ -13,126 +13,13 @@ import argparse
 import numpy as np
 import cv2
 import caffe
-from pythonlayers.helpers import im_to_blob
+from pythonlayers.helpers import *
+import modifiedSiamese.helpers2 as h2
 import matplotlib.pyplot as plt
 import datetime
 
-im_target_size = 227
 
-blob = caffe.proto.caffe_pb2.BlobProto()
-data = open('placesOriginalModel/places205CNN_mean.binaryproto', 'rb').read()
-blob.ParseFromString(data)
-arr = np.array(caffe.io.blobproto_to_array(blob))
-# changing order of rows, colmn, channel, batch_size
-arr = np.squeeze(arr.transpose((2, 3, 1, 0)))
-im_scaley = float(im_target_size) / float(256)
-im_scalex = float(im_target_size) / float(256)
-meanarr = cv2.resize(
-    arr,
-    None,
-    None,
-    fx=im_scalex,
-    fy=im_scaley,
-    interpolation=cv2.INTER_LINEAR)
-
-
-def _find_threshold(h_map, ratio):
-    assert ratio <= 1.0
-    temp = np.sort(
-        h_map.reshape(h_map.shape[0] * h_map.shape[1]), kind='mergesort')
-    return temp[int((1 - ratio) * len(temp))]
-
-
-def _round_image(img):
-    img[img > 255] = 255
-    img[img < 0] = 0
-    return img
-
-
-def _get_image_blob(img_name):
-    im = _load_image(img_name)
-    processed_ims = im - meanarr
-    blob = im_to_blob(processed_ims)
-    return blob
-
-
-def _load_image(img_name):
-    im = cv2.imread(img_name)
-    im_orig = im.astype(np.float32, copy=True)
-
-    min_curr_size = min(im.shape[:2])
-    im_scale = float(im_target_size) / float(min_curr_size)
-
-    #im_scaley = float(im_target_size) / float(im_size[0])
-    #im_scalex = float(im_target_size) / float(im_size[1])
-    im = cv2.resize(
-        im_orig[:min_curr_size, :min_curr_size, :],
-        None,
-        None,
-        fx=im_scale,
-        fy=im_scale,
-        interpolation=cv2.INTER_LINEAR)
-    return im.copy()
-
-
-def _get_occluded_image_blobs(img_name, size_patch, stride):
-    im = _load_image(img_name)
-
-    l_blob = []
-    l_occ_map = []
-    im_size1 = im.shape[0]
-    im_size2 = im.shape[1]
-    cR = -size_patch + 1
-    while im_size1 - 1 >= cR - 1:
-        cC = -size_patch + 1
-        while im_size2 - 1 > cC - 1:
-            #import IPython
-            #IPython.embed()
-            occluded_image, occ_map = _occlude_image(im.copy(), cR, cC,
-                                                     size_patch, stride)
-            cC += stride
-
-            #cv2.namedWindow('image', cv2.WINDOW_NORMAL)
-            #cv2.imshow('image',occluded_image.astype(np.uint8))
-            #cv2.waitKey(0)
-            #cv2.destroyAllWindows()
-
-            processed_ims = occluded_image - meanarr
-            l_blob.append(im_to_blob(processed_ims))
-            l_occ_map.append(occ_map)
-        cR += stride
-
-    return l_blob, l_occ_map
-
-
-def _get_coordinates(cR, cC, size_patch, maxRow, maxCol):
-    r1 = cR
-    r2 = cR + size_patch
-    c1 = cC
-    c2 = cC + size_patch
-    if r1 < 0:
-        r1 = 0
-    if r2 - 1 > maxRow - 1:
-        r2 = maxRow
-    if c1 < 0:
-        c1 = 0
-    if c2 - 1 > maxCol - 1:
-        c2 = maxCol
-
-    return r1, r2, c1, c2
-
-
-def _occlude_image(im, cR, cC, size_patch, stride):
-    """creates gray patches in image."""
-    r1, r2, c1, c2 = _get_coordinates(cR, cC, size_patch, im.shape[0],
-                                      im.shape[1])
-    im[r1:r2, c1:c2, :] = 127.5
-    occ_map = np.ones((im_target_size, im_target_size))
-    occ_map[r1:r2, c1:c2] = 0
-    return im, occ_map
-
-
-class SiameseTrainWrapper2(object):
+class SiameseTrainWrapper(object):
     """A simple wrapper around Caffe's solver.
     This wrapper gives us control over he snapshotting process, which we
     use to unnormalize the learned bounding-box regression weights.
@@ -157,8 +44,15 @@ class SiameseTrainWrapper2(object):
         self.class_size = class_size
         self.class_adju = class_adju
         self.data_folder = 'data/'
+        self.im_target_size = 227
+        self.meanarr = h2._load_mean_binaryproto(
+            fileName='placesOriginalModel/places205CNN_mean.binaryproto',
+            im_target_size=self.im_target_size)
 
         if self.train == 1:
+            import IPython
+            IPython.embed()
+
             self.solver = caffe.SGDSolver(solver_prototxt)
             if pretrainedSiameseModel is not None:
                 print('Loading pretrained model '
@@ -177,8 +71,6 @@ class SiameseTrainWrapper2(object):
                                             caffe.TEST)
 
     def trainTest(self):
-        #import ipdb
-        #ipdb.set_trace()
         #self.solver.test_nets[0].forward()
         #self.solver.net.forward()
         #self.solver.test_nets[0].blobs['conv1'].data[0,0,1,1:5]
@@ -369,7 +261,7 @@ class SiameseTrainWrapper2(object):
                 print 'generating heat map for ', imageDict[imlist[
                     im1]], imlist[im1], 'using occluding patch'
 
-                im_gen = self.generate_heat_map_softmax(
+                im_gen_occ, heat_map_occ, heat_map_raw_occ = self.generate_heat_map_softmax(
                     imageDict,
                     imlist,
                     im1,
@@ -380,21 +272,46 @@ class SiameseTrainWrapper2(object):
                     im1] + '-' + str(size_patch) + '-' + str(
                         stride) + '-' + '-M-nSize-' + str(
                             self.netSize) + '-tstamp-' + tStamp
+                cv2.imwrite(preName + '.png', im_gen_occ)
             elif tech == 'grad':
                 #using graidents wrt input to visualize
                 print 'generating heat map for ', imageDict[imlist[
                     im1]], imlist[im1], 'using gradients wrt image'
 
-                im_gen = self.generate_heat_map_gradients(
+                im_gen_grad, heat_map_grad, heat_map_raw_grad = self.generate_heat_map_gradients(
                     imageDict, imlist, im1, ratio=highlighted_ratio)
                 preName = 'modifiedNetResults_visu_grad/' + imlist[
                     im1] + '-' + '-M-nSize-' + str(
                         self.netSize) + '-tstamp-' + tStamp
-            else:
-                save = 0
+                cv2.imwrite(preName + '.png', im_gen_grad)
+            elif tech == 'both':
+                #use both gradient and occlusion path to visualize
+                print 'generating heat map for ', imageDict[imlist[im1]], imlist[
+                    im1], 'using bothe gradients wrt image and occlusion patches'
 
-            if save == 1:
-                cv2.imwrite(preName + '.png', im_gen)
+                im_gen_grad, heat_map_grad, heat_map_raw_grad = self.generate_heat_map_gradients(
+                    imageDict, imlist, im1, ratio=highlighted_ratio)
+                preName = 'modifiedNetResults_visu_grad/' + imlist[
+                    im1] + '-' + '-M-nSize-' + str(
+                        self.netSize) + '-tstamp-' + tStamp
+
+                im_gen_occ, heat_map_occ, heat_map_raw_occ = self.generate_heat_map_softmax(
+                    imageDict,
+                    imlist,
+                    im1,
+                    size_patch,
+                    stride,
+                    ratio=highlighted_ratio)
+                preName = 'modifiedNetResults_visu_occ/' + imlist[
+                    im1] + '-' + str(size_patch) + '-' + str(
+                        stride) + '-' + '-M-nSize-' + str(
+                            self.netSize) + '-tstamp-' + tStamp
+                save = 0
+                if save == 1:
+                    cv2.imwrite(preName + '.png', im_gen_grad)
+                    cv2.imwrite(preName + '.png', im_gen_occ)
+                import IPython
+                IPython.embed()
 
     def generate_heat_map_softmax(self,
                                   imageDict,
@@ -404,13 +321,15 @@ class SiameseTrainWrapper2(object):
                                   stride,
                                   ratio=0.25):
         offset = 228
-        l_blobs_im1, l_occ_map = _get_occluded_image_blobs(
+        l_blobs_im1, l_occ_map = h2._get_occluded_image_blobs(
             img_name=self.data_folder + imlist[im1],
             size_patch=size_patch,
-            stride=stride)
+            stride=stride,
+            meanarr=self.meanarr,
+            im_target_size=self.im_target_size)
         print "no of occluded maps ", len(l_blobs_im1)
         blobs = {'data': None}
-        heat_map = np.zeros((im_target_size, im_target_size))
+        heat_map = np.zeros((self.im_target_size, self.im_target_size))
 
         for i in range(len(l_blobs_im1)):
             blobs['data'] = l_blobs_im1[i]
@@ -429,21 +348,20 @@ class SiameseTrainWrapper2(object):
         #IPython.embed()
 
         heat_map = heat_map[:offset, :offset]
-        heat_map_o = 100 * (heat_map - heat_map.min()) / (
+        heat_map_o = (heat_map - heat_map.min()) / (
             heat_map.max() - heat_map.min())
-        img1 = _load_image(self.data_folder + imlist[im1])
-        img1 = img1[:offset, :offset, :]
+        img1 = h2._load_image(
+            self.data_folder + imlist[im1], im_target_size=self.im_target_size)
+        #img1 = img1[:offset, :offset, :]
         heat_map = heat_map_o.copy()
 
         #invert the heat map
-        heat_map = 100 - heat_map
-        threshold = _find_threshold(heat_map, ratio)
-
-        #import IPython
-        #IPython.embed()
+        heat_map = 1.0 - heat_map
+        threshold = h2._find_threshold(heat_map, ratio)
 
         heat_map[heat_map < threshold] = 0
-        heat_map *= 1.5
+        heat_map[heat_map >= threshold] = 1
+        heat_map *= 1
         #plt.matshow(heat_map)
         #plt.colorbar()
         #plt.show()
@@ -453,21 +371,24 @@ class SiameseTrainWrapper2(object):
         img1[:, :, 2] = temp
         img1[:, :, 1] = temp
         img1[:, :, 0] = temp
-        img1[:, :, 2] += heat_map
+        img1[:, :, 2] += heat_map * 100
 
-        img1 = _round_image(img1)
+        img1 = h2._round_image(img1)
         #cv2.imshow('image', img1.astype(np.uint8))
         #cv2.waitKey(0)
         #cv2.destroyAllWindows()
-        return img1.astype(np.uint8)
+        return img1.astype(np.uint8), heat_map.astype(np.uint8), heat_map_o
 
     def generate_heat_map_gradients(self, imageDict, imlist, im1, ratio=0.25):
         blobs = {'data': None}
-        blobs['data'] = _get_image_blob(
-            img_name=self.data_folder + imlist[im1])
+        blobs['data'] = h2._get_image_blob(
+            img_name=self.data_folder + imlist[im1],
+            meanarr=self.meanarr,
+            im_target_size=self.im_target_size)
 
         label_index = imageDict[imlist[im1]] - self.class_adju
-        caffe_data = np.random.random((1, 3, im_target_size, im_target_size))
+        caffe_data = np.random.random(
+            (1, 3, self.im_target_size, self.im_target_size))
         caffeLabel = np.zeros((1, self.class_size))
         caffeLabel[0, label_index] = 1
 
@@ -487,28 +408,29 @@ class SiameseTrainWrapper2(object):
         heat_map_raw = saliency.copy()
         kernel = np.ones((3, 3), np.uint8)
         heat_map = cv2.dilate(heat_map_raw, kernel, iterations=2)
-        threshold = _find_threshold(heat_map, ratio=0.25)
+        threshold = h2._find_threshold(heat_map, ratio=0.25)
         heat_map[heat_map < threshold] = 0
-        heat_map[heat_map > threshold] = 1
-        heat_map *= 100
+        heat_map[heat_map >= threshold] = 1
+        #heat_map *= 100
         #plt.matshow(heat_map)
         #plt.colorbar()
         #plt.show()
 
-        img1 = _load_image(self.data_folder + imlist[im1])
+        img1 = h2._load_image(
+            self.data_folder + imlist[im1], im_target_size=self.im_target_size)
         temp = np.sum(img1, axis=2) / 3.0
         img1[:, :, 2] = temp
         img1[:, :, 1] = temp
         img1[:, :, 0] = temp
-        img1[:, :, 2] += heat_map
+        img1[:, :, 2] += heat_map * 100
 
-        img1 = _round_image(img1)
+        img1 = h2._round_image(img1)
         #plt.figure()
         #plt.imshow(img1.astype(np.uint8))
         #plt.show()
         ##import IPython
         ##IPython.embed()
-        return img1.astype(np.uint8)
+        return img1.astype(np.uint8), heat_map.astype(np.uint8), saliency
 
 
 def siameseTrainer(siameseSolver,
@@ -525,7 +447,7 @@ def siameseTrainer(siameseSolver,
     # timers
     #_t = {'im_detect' : Timer(), 'misc' : Timer()}
 
-    sw = SiameseTrainWrapper2(
+    sw = SiameseTrainWrapper(
         siameseSolver,
         pretrainedSiameseModel=pretrainedSiameseModel,
         pretrained_model=pretrained_model,
@@ -533,9 +455,6 @@ def siameseTrainer(siameseSolver,
         testProto=testProto,
         train=train,
         netSize=netSize)
-    # import IPython
-    # IPython.embed()
-    tech = 'occ'  #'grad'
     if train == 1:
         print "training"
         sw.trainTest()

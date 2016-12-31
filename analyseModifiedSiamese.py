@@ -16,25 +16,29 @@ siameseSolver = 'modifiedSiameseModels/siamesePlaces_' + str(
     netSize) + '_solver.prototxt'
 fileName = 'data/imagelist.txt'
 
-#to visualize toggle train and visu
-#to test toggle only train
-train = 0
 visu = 1
 
 #specify the technique used to visualize the network
 #tech = 'grad'
-tech = 'occ'
-#tech = 'grad'
+#tech = 'occ'
+tech = 'both'
 
 if visu == 1:
     #load appropriate model while testing
     pretrainedSiameseModel = 'modifiedNetResults/Modified-netsize-1000-epoch-4-tstamp--Timestamp-2016-12-23-05:23:20-net-final.caffemodel'
     if tech == 'occ':
-        testProto = 'modifiedSiameseModels/extracted_siamesePlaces_' + str(
+        testProto1 = 'modifiedSiameseModels/extracted_siamesePlaces_' + str(
             netSize) + '_test.prototxt'
+        testProto2 = None
     elif tech == 'grad':
         #needs force gradient line in the prototxt file
-        testProto = 'modifiedSiameseModels/grad_visu_extracted_siamesePlaces_' + str(
+        testProto1 = 'modifiedSiameseModels/grad_visu_extracted_siamesePlaces_' + str(
+            netSize) + '_test.prototxt'
+        testProto2 = None
+    elif tech == 'both':
+        testProto1 = 'modifiedSiameseModels/grad_visu_extracted_siamesePlaces_' + str(
+            netSize) + '_test.prototxt'
+        testProto2 = 'modifiedSiameseModels/extracted_siamesePlaces_' + str(
             netSize) + '_test.prototxt'
 else:
     tech = None

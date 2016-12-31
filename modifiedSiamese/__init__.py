@@ -5,3 +5,4 @@
 # --------------------------------------------------------
 
 from . import SiameseTrainer
+from . import helpers
