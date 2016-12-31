@@ -95,12 +95,8 @@ class SiameseTrainWrapper(object):
         #self.solver.net.forward()
         #self.solver.test_nets[0].blobs['conv1'].data[0,0,1,1:5]
         #self.solver.net.blobs['conv1'].data[0,0,1,1:5]
-        #import IPython
-        #IPython.embed()
-
         #print self.solver.net.params['conv1'][0].data[1,1,1:5,1]
         #print self.solver.test_nets[0].params['conv1'][0].data[1,1,1:5,1]
-        #1500
         num_data_epoch_train = 540
         num_data_epoch_test = 240
         tStamp = '-Timestamp-{:%Y-%m-%d-%H:%M:%S}'.format(
@@ -120,10 +116,6 @@ class SiameseTrainWrapper(object):
                 lossId2s = 0
                 for i in range(num_data_epoch_train):
                     self.solver.step(1)
-
-                    #if i%50 == 0 and i != 0:
-                    #import IPython
-                    #IPython.embed()
 
                     lossCo = 0.2 * self.solver.net.blobs['cont_loss'].data
                     lossId1 = 0.4 * self.solver.net.blobs[
@@ -176,8 +168,6 @@ class SiameseTrainWrapper(object):
                     for i in range(num_data_epoch_test):
                         loss1 = self.solver.test_nets[0].forward()
                         #print i, loss1, loss1['sim'], loss1['euc_dist']
-                        #import IPython
-                        #IPython.embed()
 
                         if loss1['sim'] == 1:
                             simC += 1
@@ -223,17 +213,12 @@ class SiameseTrainWrapper(object):
                     plt.plot(k, netacc1, 'r.')
                     plt.plot(k, netacc2, 'b.')
                     plt.pause(0.05)
-                    #import IPython
-                    #IPython.embed()
 
                     plt.figure(4)
-                    #plt.clf()
-                    #plt.xlim(-0.5, 1.5)
                     plt.xlim(-0.5, 100)
                     plt.title(str(self.netSize) + "test distance")
                     plt.plot(plot_data_s[:, 0], plot_data_s[:, 1], 'r.')
                     plt.plot(plot_data_d[:, 0], plot_data_d[:, 1], 'b.')
-                    #plt.show()
                     plt.pause(0.05)
 
                 if k % 1 == 0:
@@ -364,18 +349,11 @@ class SiameseTrainWrapper(object):
             p = p / p.sum()
             prob1 = p[imageDict[imlist[im1]]]
             heat_map += l_occ_map[i] * prob1
-            #import IPython
-            #IPython.embed()
-
-        #import IPython
-        #IPython.embed()
-
         heat_map = heat_map[:offset, :offset]
         heat_map_o = (heat_map - heat_map.min()) / (
             heat_map.max() - heat_map.min())
         img1 = h2._load_image(
             self.data_folder + imlist[im1], im_target_size=self.im_target_size)
-        #img1 = img1[:offset, :offset, :]
         heat_map = heat_map_o.copy()
 
         #invert the heat map
@@ -434,7 +412,6 @@ class SiameseTrainWrapper(object):
         threshold = h2._find_threshold(heat_map, ratio=0.25)
         heat_map[heat_map < threshold] = 0
         heat_map[heat_map >= threshold] = 1
-        #heat_map *= 100
         #plt.matshow(heat_map)
         #plt.colorbar()
         #plt.show()
@@ -451,8 +428,6 @@ class SiameseTrainWrapper(object):
         #plt.figure()
         #plt.imshow(img1.astype(np.uint8))
         #plt.show()
-        ##import IPython
-        ##IPython.embed()
         return img1.astype(np.uint8), heat_map.astype(np.uint8), saliency
 
 
@@ -468,10 +443,6 @@ def siameseTrainer(siameseSolver,
                    viz_tech=None,
                    compare=0,
                    netSize=1000):
-    #numImagePair = 1  #len(imdb.image_index)
-    # timers
-    #_t = {'im_detect' : Timer(), 'misc' : Timer()}
-
     sw = SiameseTrainWrapper(
         siameseSolver,
         pretrainedSiameseModel=pretrainedSiameseModel,
