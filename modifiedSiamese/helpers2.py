@@ -10,6 +10,14 @@ import cv2
 from pythonlayers.helpers import *
 
 
+def _analyse_heat_maps(heat_map1, heat_map2):
+    ovlap_count = (heat_map1 & heat_map2).sum().astype(float)
+    union_count = (heat_map1 | heat_map2).sum()
+    iou_percent = 100 * ovlap_count / union_count
+    #print ovlap_count, union_count, iou_percent
+    return iou_percent
+
+
 def _load_mean_binaryproto(
         fileName='placesOriginalModel/places205CNN_mean.binaryproto',
         im_target_size=227):

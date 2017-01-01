@@ -258,6 +258,10 @@ class SiameseTrainWrapper(object):
             temp = i.split(' ')
             imageDict[temp[0]] = int(temp[1]) - self.class_adju
             imlist.append(temp[0])
+        if tech == 'both':
+            self.ov_lap_heat_map = np.zeros(len(imlist))
+        if tech == 'both' or tech == 'grad':
+            self.iterations = 5
         for i in range(len(imlist)):
             im1 = i
             save = 1
@@ -286,19 +290,14 @@ class SiameseTrainWrapper(object):
                 im_gen_grad, heat_map_grad, heat_map_raw_grad = self.generate_heat_map_gradients(
                     imageDict, imlist, im1, ratio=highlighted_ratio)
                 preName = 'modifiedNetResults_visu_grad/' + imlist[
-                    im1] + '-' + '-M-nSize-' + str(
-                        self.netSize) + '-tstamp-' + tStamp
+                    im1] + '-itera-' + str(
+                        self.iterations) + '-M-nSize-' + str(
+                            self.netSize) + '-tstamp-' + tStamp
                 cv2.imwrite(preName + '.png', im_gen_grad)
             elif tech == 'both':
                 #use both gradient and occlusion path to visualize
                 print 'generating heat map for ', imageDict[imlist[im1]], imlist[
-                    im1], 'using bothe gradients wrt image and occlusion patches'
-
-                im_gen_grad, heat_map_grad, heat_map_raw_grad = self.generate_heat_map_gradients(
-                    imageDict, imlist, im1, ratio=highlighted_ratio)
-                preName_grad = 'modifiedNetResults_visu_grad/' + imlist[
-                    im1] + '-' + '-M-nSize-' + str(
-                        self.netSize) + '-tstamp-' + tStamp
+                    im1], 'using both gradients wrt image and occlusion patches'
 
                 im_gen_occ, heat_map_occ, heat_map_raw_occ = self.generate_heat_map_softmax(
                     imageDict,
@@ -311,15 +310,27 @@ class SiameseTrainWrapper(object):
                     im1] + '-' + str(size_patch) + '-' + str(
                         stride) + '-' + '-M-nSize-' + str(
                             self.netSize) + '-tstamp-' + tStamp
-                save = 0
-                if save == 1:
 
+                im_gen_grad, heat_map_grad, heat_map_raw_grad = self.generate_heat_map_gradients(
+                    imageDict, imlist, im1, ratio=highlighted_ratio)
+                preName_grad = 'modifiedNetResults_visu_grad/' + imlist[
+                    im1] + '-itera-' + str(
+                        self.iterations) + '-M-nSize-' + str(
+                            self.netSize) + '-tstamp-' + tStamp
+
+                save = 1
+                if save == 1:
                     cv2.imwrite(preName_grad + '.png', im_gen_grad)
                     cv2.imwrite(preName_occ + '.png', im_gen_occ)
                 #code for comparision
                 if compare == 1:
-                    import IPython
-                    IPython.embed()
+                    self.ov_lap_heat_map[i] = h2._analyse_heat_maps(
+                        heat_map_occ, heat_map_grad)
+                    print "overlap percentage", self.ov_lap_heat_map[i]
+        if compare == 1:
+            print self.ov_lap_heat_map
+            import IPython
+            IPython.embed()
 
     def generate_heat_map_softmax(self,
                                   imageDict,
@@ -335,7 +346,7 @@ class SiameseTrainWrapper(object):
             stride=stride,
             meanarr=self.meanarr,
             im_target_size=self.im_target_size)
-        print "no of occluded maps ", len(l_blobs_im1)
+        #print "no of occluded maps ", len(l_blobs_im1)
         blobs = {'data': None}
         heat_map = np.zeros((self.im_target_size, self.im_target_size))
 
@@ -408,8 +419,14 @@ class SiameseTrainWrapper(object):
 
         heat_map_raw = saliency.copy()
         kernel = np.ones((3, 3), np.uint8)
-        heat_map = cv2.dilate(heat_map_raw, kernel, iterations=2)
-        threshold = h2._find_threshold(heat_map, ratio=0.25)
+        #iterations = 5
+        if self.iterations > 0:
+            heat_map = cv2.dilate(
+                heat_map_raw, kernel, iterations=self.iterations)
+        else:
+            heat_map = heat_map_raw.copy()
+
+        threshold = h2._find_threshold(heat_map, ratio=ratio)
         heat_map[heat_map < threshold] = 0
         heat_map[heat_map >= threshold] = 1
         #plt.matshow(heat_map)
