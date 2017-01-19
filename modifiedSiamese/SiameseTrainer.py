@@ -54,8 +54,8 @@ class SiameseTrainWrapper(object):
             im_target_size=self.im_target_size)
 
         if self.train == 1:
-            import IPython
-            IPython.embed()
+            #import IPython
+            #IPython.embed()
 
             self.solver = caffe.SGDSolver(solver_prototxt)
             if pretrainedSiameseModel is not None:
@@ -97,31 +97,39 @@ class SiameseTrainWrapper(object):
         #self.solver.net.blobs['conv1'].data[0,0,1,1:5]
         #print self.solver.net.params['conv1'][0].data[1,1,1:5,1]
         #print self.solver.test_nets[0].params['conv1'][0].data[1,1,1:5,1]
-        num_data_epoch_train = 540
-        num_data_epoch_test = 240
+        num_data_epoch_train = 5  #40
+        num_data_epoch_test = 2  #40
+
+        plot_data_d_v = np.zeros((0, 2))
+        plot_data_s_v = np.zeros((0, 2))
+        plot_data_id_l1_v = np.zeros((0, 2))
+        plot_data_all_v = np.zeros((0, 2))
+        plot_data_d = np.zeros((0, 2))
+        plot_data_s = np.zeros((0, 2))
+        plot_data_id_l1 = np.zeros((0, 2))
+        plot_data_all = np.zeros((0, 2))
         tStamp = '-Timestamp-{:%Y-%m-%d-%H:%M:%S}'.format(
             datetime.datetime.now())
         plt.ion()
+
+        def get_scaled_losses(cont_loss, soft_loss1, soft_loss2):
+            return 0.2 * cont_loss, 0.4 * soft_loss1, 0.4 * soft_loss2
+
         try:
             for k in range(100):
                 disLoss = 0
                 simLoss = 0
                 simC = 0
                 disC = 0
-                plot_data_d = np.zeros((0, 2))
-                plot_data_s = np.zeros((0, 2))
-                plot_data_id_l1 = np.zeros((0, 2))
-                plot_data_id_l2 = np.zeros((0, 2))
                 lossId1s = 0
-                lossId2s = 0
+                #lossId2s = 0
+                lossAll = 0
                 for i in range(num_data_epoch_train):
                     self.solver.step(1)
-
-                    lossCo = 0.2 * self.solver.net.blobs['cont_loss'].data
-                    lossId1 = 0.4 * self.solver.net.blobs[
-                        'softmax_loss_1'].data
-                    lossId2 = 0.4 * self.solver.net.blobs[
-                        'softmax_loss_2'].data
+                    lossCo, lossId1, lossId2 = get_scaled_losses(
+                        self.solver.net.blobs['cont_loss'].data,
+                        self.solver.net.blobs['softmax_loss_1'].data,
+                        self.solver.net.blobs['softmax_loss_2'].data)
                     if self.solver.net.blobs['sim'].data == 1:
                         simC += 1
                         simLoss += lossCo
@@ -131,30 +139,18 @@ class SiameseTrainWrapper(object):
                         disC += 1
                         disLoss += lossCo
                         plot_data_d = np.vstack((plot_data_d, [k, lossCo]))
-                    lossId1s += lossId1
-                    lossId2s += lossId2
+                    lossId1s += lossId1 + lossId2
+                    lossAll += lossId1 + lossId2 + lossCo
+                    #lossId2s += lossId2
 
                     #print "sim", self.solver.net.blobs[
                     #    'sim'].data, "cont loss", lossCo, "id1", lossId1, "id2", lossId2
                 plot_data_id_l1 = np.vstack(
                     (plot_data_id_l1, [k, lossId1s / num_data_epoch_train]))
-                plot_data_id_l2 = np.vstack(
-                    (plot_data_id_l2, [k, lossId2s / num_data_epoch_train]))
+                plot_data_all = np.vstack(
+                    (plot_data_all, [k, lossAll / num_data_epoch_train]))
                 print k, "cont net loss", simLoss / (simC + 0.1), disLoss / (
-                    disC + 0.1), simC, disC, "Id net loss", lossId1s, lossId2s
-                plt.figure(1)
-                plt.xlim(-0.5, 100)
-                plt.title(str(self.netSize) + "train errors")
-                plt.plot(plot_data_s[:, 0], plot_data_s[:, 1], 'r.')
-                plt.plot(plot_data_d[:, 0], plot_data_d[:, 1], 'b.')
-                plt.pause(0.05)
-
-                plt.figure(2)
-                plt.xlim(-0.5, 100)
-                plt.title(str(self.netSize) + "train softmax loss")
-                plt.plot(plot_data_id_l1[:, 0], plot_data_id_l1[:, 1], 'r.')
-                plt.plot(plot_data_id_l2[:, 0], plot_data_id_l2[:, 1], 'b.')
-                plt.pause(0.05)
+                    disC + 0.1), simC, disC, "Id net loss", lossId1s, lossAll
 
                 if k % 5 == 0:
                     acc1 = np.zeros(self.class_size)
@@ -165,20 +161,35 @@ class SiameseTrainWrapper(object):
                     plot_acc2 = np.zeros((0, 2))
                     confusion_dis = np.zeros(
                         (self.class_size, self.class_size))
+                    lossId1s = 0
+                    #lossId2s = 0
+                    lossAll = 0
                     for i in range(num_data_epoch_test):
                         loss1 = self.solver.test_nets[0].forward()
                         #print i, loss1, loss1['sim'], loss1['euc_dist']
-
-                        if loss1['sim'] == 1:
+                        lossCo, lossId1, lossId2 = get_scaled_losses(
+                            self.solver.test_nets[0].blobs['cont_loss'].data,
+                            self.solver.test_nets[0].blobs[
+                                'softmax_loss_1'].data, self.solver.test_nets[
+                                    0].blobs['softmax_loss_2'].data)
+                        #import IPython
+                        #IPython.embed()
+                        similarity = self.solver.test_nets[0].blobs[
+                            'sim'].data[0]
+                        if similarity == 1:
                             simC += 1
                             simLoss += loss1['euc_dist']
-                            plot_data_s = np.vstack(
-                                (plot_data_s, [k + 0.5, loss1['euc_dist']]))
+                            plot_data_s_v = np.vstack(
+                                (plot_data_s_v, [k + 0.5, loss1['euc_dist']]))
                         else:
                             disC += 1
                             disLoss += loss1['euc_dist']
-                            plot_data_d = np.vstack(
-                                (plot_data_d, [k, loss1['euc_dist']]))
+                            plot_data_d_v = np.vstack(
+                                (plot_data_d_v, [k, loss1['euc_dist']]))
+                        lossId1s += lossId1 + lossId2
+                        lossAll += lossId1 + lossId2 + lossCo
+                        #lossId2s += lossId2
+
                         id1 = self.solver.test_nets[0].layers[0].m_batch_1[0][
                             1] - self.class_adju
                         id2 = self.solver.test_nets[0].layers[0].m_batch_2[0][
@@ -200,32 +211,73 @@ class SiameseTrainWrapper(object):
                     netacc2 = (acc2.sum()) / (fre2.sum())
                     acc1 = acc1 / (fre1 + 0.1)
                     acc2 = acc2 / (fre2 + 0.1)
+
+                    plot_data_id_l1_v = np.vstack(
+                        (plot_data_id_l1_v,
+                         [k, lossId1s / num_data_epoch_train]))
+                    plot_data_all_v = np.vstack(
+                        (plot_data_all_v, [k, lossAll / num_data_epoch_train]))
                     plot_acc1 = np.vstack((plot_acc1, [k, netacc1]))
                     plot_acc2 = np.vstack((plot_acc2, [k, netacc2]))
                     print "testing**** net loss", simLoss / (
                         simC + 0.1), disLoss / (disC + 0.1), simC, disC
                     #print confusion_dis
-                    print acc1, acc2
-                    print netacc
-                    plt.figure(3)
-                    plt.xlim(-0.5, 100)
-                    plt.title(str(self.netSize) + "test accuracy")
-                    plt.plot(k, netacc1, 'r.')
-                    plt.plot(k, netacc2, 'b.')
-                    plt.pause(0.05)
-
-                    plt.figure(4)
-                    plt.xlim(-0.5, 100)
-                    plt.title(str(self.netSize) + "test distance")
-                    plt.plot(plot_data_s[:, 0], plot_data_s[:, 1], 'r.')
-                    plt.plot(plot_data_d[:, 0], plot_data_d[:, 1], 'b.')
-                    plt.pause(0.05)
+                    #print acc1, acc2
+                    #print netacc
 
                 if k % 1 == 0:
                     preName = 'modifiedNetResults/' + 'Modified-netsize-' + str(
                         self.netSize) + '-epoch-' + str(
                             k) + '-tstamp-' + tStamp
                     self.solver.net.save(preName + '-net.caffemodel')
+
+                plt.figure(1)
+                plt.xlim(-0.5, 50)
+                plt.title(str(self.netSize) + " train errors")
+                plt.plot(plot_data_s[:, 0], plot_data_s[:, 1], 'r.')
+                plt.plot(plot_data_d[:, 0], plot_data_d[:, 1], 'b.')
+                plt.pause(0.05)
+
+                plt.figure(2)
+                plt.clf()
+                plt.xlim(-0.5, 50)
+                plt.title(str(self.netSize) + " train and validation errors")
+                plt.plot(
+                    plot_data_id_l1[:, 0],
+                    plot_data_id_l1[:, 1],
+                    'r',
+                    label="train id")
+                plt.plot(
+                    plot_data_all[:, 0],
+                    plot_data_all[:, 1],
+                    'b',
+                    label="train all")
+                plt.plot(
+                    plot_data_id_l1_v[:, 0],
+                    plot_data_id_l1_v[:, 1],
+                    'g',
+                    label="test id")
+                plt.plot(
+                    plot_data_all_v[:, 0],
+                    plot_data_all_v[:, 1],
+                    'k',
+                    label="test all")
+                plt.legend(bbox_to_anchor=(.80, .8), loc=2, borderaxespad=0.)
+                plt.pause(0.05)
+
+                plt.figure(3)
+                plt.xlim(-0.5, 50)
+                plt.title(str(self.netSize) + " test accuracy")
+                plt.plot(k, netacc1, 'r.')
+                plt.plot(k, netacc2, 'b.')
+                plt.pause(0.05)
+
+                plt.figure(4)
+                plt.xlim(-0.5, 50)
+                plt.title(str(self.netSize) + " test distance")
+                plt.plot(plot_data_s_v[:, 0], plot_data_s_v[:, 1], 'r.')
+                plt.plot(plot_data_d_v[:, 0], plot_data_d_v[:, 1], 'b.')
+                plt.pause(0.05)
 
         except KeyboardInterrupt:
             pass
@@ -235,7 +287,7 @@ class SiameseTrainWrapper(object):
         plt.ioff()
 
         plt.figure(1).savefig(preName + '-train-d-error.png')
-        plt.figure(1).savefig(preName + '-train-s-error.png')
+        plt.figure(2).savefig(preName + '-train-s-error.png')
         plt.figure(3).savefig(preName + '-test-acc.png')
         plt.figure(4).savefig(preName + '-test-dist.png')
         self.solver.net.save(preName + '-net-final.caffemodel')
@@ -250,7 +302,7 @@ class SiameseTrainWrapper(object):
         lines = [line.rstrip('\n') for line in f]
         imageDict = {}
         imlist = []
-        size_patch = 100
+        size_patch = 200
         stride = 10
         highlighted_ratio = 0.25
 
@@ -261,7 +313,7 @@ class SiameseTrainWrapper(object):
         if tech == 'both':
             self.ov_lap_heat_map = np.zeros(len(imlist))
         if tech == 'both' or tech == 'grad':
-            self.iterations = 5
+            self.iterations = 2
         for i in range(len(imlist)):
             im1 = i
             save = 1

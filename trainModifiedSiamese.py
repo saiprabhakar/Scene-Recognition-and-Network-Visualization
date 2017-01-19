@@ -18,8 +18,8 @@ fileName = 'data/imagelist.txt'
 
 #to visualize toggle train and visu
 #to test toggle only train
-train = 0
-visu = 1
+train = 1
+visu = 0
 
 #specify the technique used to visualize the network
 #tech = 'grad'

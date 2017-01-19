@@ -12,6 +12,6 @@ collect images from cobot for all floors
 
 
 
-
+normalize siamese network before contrastive loss
 
 Fix reshape thing in contrastive loss

@@ -834,9 +834,9 @@ layer {
   bottom: "fc8_s_sig"
   bottom: "fc8_s_p_sig"
   bottom: "sim"
-  include {
-    phase: TRAIN
-  }
+  #include {
+  #  phase: TRAIN
+  #}
   top: "cont_loss"
   contrastive_loss_param {
     margin: 10
@@ -848,9 +848,9 @@ layer {
   type: "SoftmaxWithLoss"
   bottom: "fc9_f"
   bottom: "label1"
-  include {
-    phase: TRAIN
-  }
+  #include {
+  #  phase: TRAIN
+  #}
   top: "softmax_loss_1"
   loss_weight: 0.25
 }
@@ -859,9 +859,9 @@ layer {
   type: "SoftmaxWithLoss"
   bottom: "fc9_f_p"
   bottom: "label2"
-  include {
-    phase: TRAIN
-  }
+  #include {
+  #  phase: TRAIN
+  #}
   top: "softmax_loss_2"
   loss_weight: 0.25
 }
@@ -873,9 +873,9 @@ layer {
   type: "EuclideanLoss"
   bottom: "fc8_s_sig"
   bottom: "fc8_s_p_sig"
-  include {
-    phase: TEST
-  }
+  #include {
+  #  phase: TEST
+  #}
   top: "euc_dist"
 }
 layer {
