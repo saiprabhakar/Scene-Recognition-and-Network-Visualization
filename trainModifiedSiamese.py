@@ -20,8 +20,12 @@ fileName_test_visu = 'data/imagelist_all.txt'
 #to test toggle only train
 #to save all the possible masks of visualization use visu_all_pos and visu
 train = 0
-visu = 1
-visu_all_pos = True
+visu = 0
+visu_all_pos = False
+analyse_all_visualizations = 1
+
+visu_all_save_dir = 'modifiedNetResults_visu/'
+visu_all_analyse_dir = 'modifiedNetResults_visu/'
 
 #specify the technique used to visualize the network
 #tech = 'grad'
@@ -47,6 +51,11 @@ if visu == 1:
         #needs force gradient line in the prototxt file
         testProto = 'modifiedSiameseModels/grad_visu_extracted_siamesePlaces_' + str(
             netSize) + '_test.prototxt'
+elif analyse_all_visualizations == 1:
+    # loading test prototype for analysis
+    pretrainedSiameseModel = 'modifiedNetResults/Modified-netsize-1000-epoch-18-tstamp--Timestamp-2017-01-22-20:02:03-net.caffemodel'
+    testProto = 'modifiedSiameseModels/extracted_siamesePlaces_' + str(
+        netSize) + '_test.prototxt'
 else:
     tech = None
     testProto = None
@@ -64,5 +73,8 @@ siameseTrainer(
     train=train,
     visu=visu,
     visu_all=visu_all_pos,
+    visu_all_save_dir=visu_all_save_dir,
+    visu_all_analyse_dir=visu_all_analyse_dir,
+    analyse_all_visualizations=analyse_all_visualizations,
     viz_tech=tech,
     netSize=netSize)
