@@ -18,6 +18,12 @@ import modifiedSiamese.helpers2 as h2
 import matplotlib.pyplot as plt
 import datetime
 
+import warnings
+import matplotlib.cbook
+warnings.filterwarnings("ignore", category=matplotlib.cbook.mplDeprecation)
+
+import pickle
+
 
 class SiameseTrainWrapper(object):
     """A simple wrapper around Caffe's solver.
@@ -54,8 +60,6 @@ class SiameseTrainWrapper(object):
             im_target_size=self.im_target_size)
 
         if self.train == 1:
-            #import IPython
-            #IPython.embed()
 
             self.solver = caffe.SGDSolver(solver_prototxt)
             if pretrainedSiameseModel is not None:
@@ -91,14 +95,13 @@ class SiameseTrainWrapper(object):
             print "testing Not implemented"
 
     def trainTest(self):
-        #self.solver.test_nets[0].forward()
-        #self.solver.net.forward()
-        #self.solver.test_nets[0].blobs['conv1'].data[0,0,1,1:5]
-        #self.solver.net.blobs['conv1'].data[0,0,1,1:5]
-        #print self.solver.net.params['conv1'][0].data[1,1,1:5,1]
-        #print self.solver.test_nets[0].params['conv1'][0].data[1,1,1:5,1]
-        num_data_epoch_train = 5  #40
-        num_data_epoch_test = 2  #40
+        num_data_epoch_train = 540
+        num_data_epoch_verification = 60
+        num_data_epoch_test = 30
+        cont_weight = 0.5
+        soft_weight = 0.25
+        test_skip = 1
+        val_skip = 1
 
         plot_data_d_v = np.zeros((0, 2))
         plot_data_s_v = np.zeros((0, 2))
@@ -108,15 +111,23 @@ class SiameseTrainWrapper(object):
         plot_data_s = np.zeros((0, 2))
         plot_data_id_l1 = np.zeros((0, 2))
         plot_data_all = np.zeros((0, 2))
+        plot_acc1 = np.zeros((0, 2))
+        plot_acc2 = np.zeros((0, 2))
         tStamp = '-Timestamp-{:%Y-%m-%d-%H:%M:%S}'.format(
             datetime.datetime.now())
+        print tStamp
         plt.ion()
 
         def get_scaled_losses(cont_loss, soft_loss1, soft_loss2):
-            return 0.2 * cont_loss, 0.4 * soft_loss1, 0.4 * soft_loss2
+            return cont_weight * cont_loss, soft_weight * soft_loss1, soft_weight * soft_loss2
 
+        print "training source", self.solver.net.layers[0].source_file
+        print "verification source", self.solver.test_nets[0].layers[
+            0].source_file
+        print "testing source", self.solver.test_nets[1].layers[0].source_file
+        save = 1
         try:
-            for k in range(100):
+            for k in range(150):
                 disLoss = 0
                 simLoss = 0
                 simC = 0
@@ -124,6 +135,7 @@ class SiameseTrainWrapper(object):
                 lossId1s = 0
                 #lossId2s = 0
                 lossAll = 0
+                lossCos = 0
                 for i in range(num_data_epoch_train):
                     self.solver.step(1)
                     lossCo, lossId1, lossId2 = get_scaled_losses(
@@ -141,6 +153,7 @@ class SiameseTrainWrapper(object):
                         plot_data_d = np.vstack((plot_data_d, [k, lossCo]))
                     lossId1s += lossId1 + lossId2
                     lossAll += lossId1 + lossId2 + lossCo
+                    lossCos += lossCo
                     #lossId2s += lossId2
 
                     #print "sim", self.solver.net.blobs[
@@ -149,22 +162,27 @@ class SiameseTrainWrapper(object):
                     (plot_data_id_l1, [k, lossId1s / num_data_epoch_train]))
                 plot_data_all = np.vstack(
                     (plot_data_all, [k, lossAll / num_data_epoch_train]))
-                print k, "cont net loss", simLoss / (simC + 0.1), disLoss / (
-                    disC + 0.1), simC, disC, "Id net loss", lossId1s, lossAll
+                simLoss = simLoss / (simC + 0.1)
+                disLoss = disLoss / (disC + 0.1)
+                print k, "cont net loss", simLoss, disLoss, "cont loss ", lossCos / num_data_epoch_train, "Id net loss", lossId1s / num_data_epoch_train, lossAll / num_data_epoch_train
+                #print simC, disC
 
-                if k % 5 == 0:
+                if k % val_skip == 0:
                     acc1 = np.zeros(self.class_size)
                     acc2 = np.zeros(self.class_size)
                     fre1 = np.zeros(self.class_size)
                     fre2 = np.zeros(self.class_size)
-                    plot_acc1 = np.zeros((0, 2))
-                    plot_acc2 = np.zeros((0, 2))
                     confusion_dis = np.zeros(
                         (self.class_size, self.class_size))
                     lossId1s = 0
                     #lossId2s = 0
                     lossAll = 0
-                    for i in range(num_data_epoch_test):
+                    simC = 0
+                    disC = 0
+                    simLoss_v = 0
+                    disLoss_v = 0
+                    for i in range(num_data_epoch_verification):
+                        #print self.solver.test_nets[0].layers[0].source_file
                         loss1 = self.solver.test_nets[0].forward()
                         #print i, loss1, loss1['sim'], loss1['euc_dist']
                         lossCo, lossId1, lossId2 = get_scaled_losses(
@@ -172,18 +190,16 @@ class SiameseTrainWrapper(object):
                             self.solver.test_nets[0].blobs[
                                 'softmax_loss_1'].data, self.solver.test_nets[
                                     0].blobs['softmax_loss_2'].data)
-                        #import IPython
-                        #IPython.embed()
                         similarity = self.solver.test_nets[0].blobs[
                             'sim'].data[0]
                         if similarity == 1:
                             simC += 1
-                            simLoss += loss1['euc_dist']
+                            simLoss_v += loss1['euc_dist']
                             plot_data_s_v = np.vstack(
                                 (plot_data_s_v, [k + 0.5, loss1['euc_dist']]))
                         else:
                             disC += 1
-                            disLoss += loss1['euc_dist']
+                            disLoss_v += loss1['euc_dist']
                             plot_data_d_v = np.vstack(
                                 (plot_data_d_v, [k, loss1['euc_dist']]))
                         lossId1s += lossId1 + lossId2
@@ -209,8 +225,8 @@ class SiameseTrainWrapper(object):
                         fre1.sum() + fre2.sum())
                     netacc1 = (acc1.sum()) / (fre1.sum())
                     netacc2 = (acc2.sum()) / (fre2.sum())
-                    acc1 = acc1 / (fre1 + 0.1)
-                    acc2 = acc2 / (fre2 + 0.1)
+                    acc1 = acc1 / (fre1 + 0.00000001)
+                    acc2 = acc2 / (fre2 + 0.00000001)
 
                     plot_data_id_l1_v = np.vstack(
                         (plot_data_id_l1_v,
@@ -219,20 +235,63 @@ class SiameseTrainWrapper(object):
                         (plot_data_all_v, [k, lossAll / num_data_epoch_train]))
                     plot_acc1 = np.vstack((plot_acc1, [k, netacc1]))
                     plot_acc2 = np.vstack((plot_acc2, [k, netacc2]))
-                    print "testing**** net loss", simLoss / (
-                        simC + 0.1), disLoss / (disC + 0.1), simC, disC
+                    print "** verification net loss ", simLoss_v / (
+                        simC + 0.1
+                    ), disLoss_v / (
+                        disC + 0.1
+                    ), "id loss", lossId1s, "net loss", lossAll, netacc * 100
+                    #print simC, disC
                     #print confusion_dis
                     #print acc1, acc2
-                    #print netacc
 
-                if k % 1 == 0:
+                if k % test_skip == 0:
+                    acc1_t = np.zeros(self.class_size)
+                    fre1_t = np.zeros(self.class_size)
+                    confusion_dis_t = np.zeros(
+                        (self.class_size, self.class_size))
+                    for i in range(num_data_epoch_test):
+                        loss1 = self.solver.test_nets[1].forward()
+                        id1 = self.solver.test_nets[1].layers[0].m_batch_1[0][
+                            1] - self.class_adju
+                        id2 = self.solver.test_nets[1].layers[0].m_batch_2[0][
+                            1] - self.class_adju
+                        confusion_dis_t[id1, id2] += loss1['euc_dist']
+                        # we worry only about net's first bracnch because all the
+                        # labels of input in the second branch will be same
+                        # as designed for convinience. This can be noticed in
+                        # confusion matrix
+                        acc1_t[int(self.solver.test_nets[1].blobs[
+                            'label1'].data[0])] += self.solver.test_nets[
+                                1].blobs['accuracy1'].data
+                        #if self.solver.test_nets[1].blobs['accuracy1'].data == 0:
+                        #    import IPython
+                        #    IPython.embed()
+                        fre1_t[int(self.solver.test_nets[1].blobs[
+                            'label1'].data[0])] += 1
+                        #print i, int(self.solver.test_nets[1].blobs['label1'].data[
+                        #    0])
+                        #acc1_t[int(self.solver.test_nets[1].blobs['label2'].data[
+                        #    0])] += self.solver.test_nets[1].blobs[
+                        #        'accuracy2'].data
+                        #fre1_t[int(self.solver.test_nets[1].blobs['label2'].data[
+                        #    0])] += 1
+                    netacc_t = (acc1_t.sum()) / (fre1_t.sum())
+                    acc1_t = acc1_t / (fre1_t + 0.00000001)
+
+                    print "**** testing net ", netacc_t * 100
+                    #print confusion_dis_t
+                    #print acc1_t, fre1_t
+                #import IPython
+                #IPython.embed()
+
+                if k % 2 == 0 and save == 1:
                     preName = 'modifiedNetResults/' + 'Modified-netsize-' + str(
                         self.netSize) + '-epoch-' + str(
                             k) + '-tstamp-' + tStamp
                     self.solver.net.save(preName + '-net.caffemodel')
 
                 plt.figure(1)
-                plt.xlim(-0.5, 50)
+                plt.xlim(-0.5, 150)
                 plt.title(str(self.netSize) + " train errors")
                 plt.plot(plot_data_s[:, 0], plot_data_s[:, 1], 'r.')
                 plt.plot(plot_data_d[:, 0], plot_data_d[:, 1], 'b.')
@@ -240,7 +299,7 @@ class SiameseTrainWrapper(object):
 
                 plt.figure(2)
                 plt.clf()
-                plt.xlim(-0.5, 50)
+                plt.xlim(-0.5, 150)
                 plt.title(str(self.netSize) + " train and validation errors")
                 plt.plot(
                     plot_data_id_l1[:, 0],
@@ -266,17 +325,17 @@ class SiameseTrainWrapper(object):
                 plt.pause(0.05)
 
                 plt.figure(3)
-                plt.xlim(-0.5, 50)
-                plt.title(str(self.netSize) + " test accuracy")
+                plt.xlim(-0.5, 150)
+                plt.title(str(self.netSize) + " verification accuracy")
                 plt.plot(k, netacc1, 'r.')
                 plt.plot(k, netacc2, 'b.')
                 plt.pause(0.05)
 
                 plt.figure(4)
-                plt.xlim(-0.5, 50)
-                plt.title(str(self.netSize) + " test distance")
-                plt.plot(plot_data_s_v[:, 0], plot_data_s_v[:, 1], 'r.')
-                plt.plot(plot_data_d_v[:, 0], plot_data_d_v[:, 1], 'b.')
+                plt.xlim(-0.5, 150)
+                plt.title(str(self.netSize) + " train cont losses")
+                plt.plot(k, simLoss, 'r.')
+                plt.plot(k, disLoss, 'b.')
                 plt.pause(0.05)
 
         except KeyboardInterrupt:
@@ -286,12 +345,99 @@ class SiameseTrainWrapper(object):
             self.netSize) + '-epoch-' + str(k) + '-tstamp-' + tStamp
         plt.ioff()
 
-        plt.figure(1).savefig(preName + '-train-d-error.png')
-        plt.figure(2).savefig(preName + '-train-s-error.png')
-        plt.figure(3).savefig(preName + '-test-acc.png')
-        plt.figure(4).savefig(preName + '-test-dist.png')
-        self.solver.net.save(preName + '-net-final.caffemodel')
+        if save == 1:
+            plt.figure(1).savefig(preName + '-train-d-error.png')
+            plt.figure(2).savefig(preName + '-train-valid-error.png')
+            #plt.figure(3).savefig(preName + '-test-acc.png')
+            plt.figure(4).savefig(preName + '-train-cont.png')
+            self.solver.net.save(preName + '-net-final.caffemodel')
         plt.close('all')
+
+        import IPython
+        IPython.embed()
+
+    def visualize_all(self, fileName, tech, compare):
+        ''' Visualizing all and saving
+        '''
+        tStamp = '-Timestamp-{:%Y-%m-%d-%H:%M:%S}'.format(
+            datetime.datetime.now())
+        f = open(fileName)
+        lines = [line.rstrip('\n') for line in f]
+        imageDict = {}
+        imlist = []
+
+        stride = 10
+        highlighted_ratio = 0.25
+        heat_map_occ_s = {}
+        heat_map_raw_occ_s = {}
+        heat_map_grad_s = {}
+        heat_map_raw_grad_s = {}
+
+        size_patch_s = [10, 50, 100]
+        dilate_iteration_s = [0, 2, 5, 10]
+        tech_s = ['occ', 'grad']
+
+        for i in lines:
+            temp = i.split(' ')
+            imageDict[temp[0]] = int(temp[1]) - self.class_adju
+            imlist.append(temp[0])
+
+        #import ipdb
+        #ipdb.set_trace()
+
+        for i in range(len(imlist)):
+            im1 = i
+            save = 1
+            print 'generating visu-', imageDict[imlist[im1]], imlist[
+                im1], 'using occ patch', size_patch_s, ' grad with dilate iter', dilate_iteration_s
+
+            if 'occ' in tech_s:
+                #occlude im1
+                for i in range(len(size_patch_s)):
+                    size_patch = size_patch_s[i]
+
+                    im_gen_occ, heat_map_occ, heat_map_raw_occ = self.generate_heat_map_softmax(
+                        imageDict,
+                        imlist,
+                        im1,
+                        size_patch,
+                        stride,
+                        ratio=highlighted_ratio)
+                    heat_map_occ_s[i] = heat_map_occ
+                    heat_map_raw_occ_s[i] = heat_map_raw_occ
+            else:
+                heat_map_occ_s[i] = heat_map_raw_occ_s[i] = None
+
+            if 'grad' in tech_s:
+                # image specific class saliency map
+                for i in range(len(dilate_iteration_s)):
+                    #the loop can be removed
+                    dilate_iteration = dilate_iteration_s[i]
+
+                    im_gen_grad, heat_map_grad, heat_map_raw_grad = self.generate_heat_map_gradients(
+                        imageDict,
+                        imlist,
+                        im1,
+                        ratio=highlighted_ratio,
+                        dilate_iterations=dilate_iteration)
+                    heat_map_grad_s[i] = heat_map_grad
+                    heat_map_raw_grad_s[i] = heat_map_raw_grad
+            else:
+                heat_map_grad_s[i] = heat_map_raw_grad_s[i] = None
+
+            preName = 'modifiedNetResults_visu/' + imlist[
+                im1][:-4] + '--M-nSize-' + str(
+                    self.netSize) + '-tstamp-' + tStamp + '--visualizations'
+
+            if save == 1:
+                with open(preName + '.pickle', 'w') as f:
+                    pickle.dump(
+                        [imlist[im1], tech_s, size_patch_s, dilate_iteration_s,
+                         heat_map_occ_s, heat_map_raw_occ_s, heat_map_grad_s,
+                         heat_map_raw_grad_s], f)
+
+        #import IPython
+        #IPython.embed()
 
     def visualize(self, fileName, tech, compare):
         ''' Visualizing using gray occlusion patches or gradients of input image
@@ -302,9 +448,10 @@ class SiameseTrainWrapper(object):
         lines = [line.rstrip('\n') for line in f]
         imageDict = {}
         imlist = []
-        size_patch = 200
-        stride = 10
+        size_patch = 1
+        stride = 1
         highlighted_ratio = 0.25
+        gradient_dilate_iterations = 10
 
         for i in lines:
             temp = i.split(' ')
@@ -312,8 +459,10 @@ class SiameseTrainWrapper(object):
             imlist.append(temp[0])
         if tech == 'both':
             self.ov_lap_heat_map = np.zeros(len(imlist))
+            self.class_ov_lap_heat_map = np.zeros(self.class_size)
+            self.class_fre = np.zeros(self.class_size)
         if tech == 'both' or tech == 'grad':
-            self.iterations = 2
+            dilate_iteration = gradient_dilate_iterations
         for i in range(len(imlist)):
             im1 = i
             save = 1
@@ -330,7 +479,7 @@ class SiameseTrainWrapper(object):
                     stride,
                     ratio=highlighted_ratio)
                 preName = 'modifiedNetResults_visu_occ/' + imlist[
-                    im1] + '-' + str(size_patch) + '-' + str(
+                    im1][:-4] + '-' + str(size_patch) + '-' + str(
                         stride) + '-' + '-M-nSize-' + str(
                             self.netSize) + '-tstamp-' + tStamp
                 cv2.imwrite(preName + '.png', im_gen_occ)
@@ -340,9 +489,13 @@ class SiameseTrainWrapper(object):
                     im1]], imlist[im1], 'using gradients wrt image'
 
                 im_gen_grad, heat_map_grad, heat_map_raw_grad = self.generate_heat_map_gradients(
-                    imageDict, imlist, im1, ratio=highlighted_ratio)
+                    imageDict,
+                    imlist,
+                    im1,
+                    ratio=highlighted_ratio,
+                    dilate_iterations=dilate_iteration)
                 preName = 'modifiedNetResults_visu_grad/' + imlist[
-                    im1] + '-itera-' + str(
+                    im1][:-4] + '-itera-' + str(
                         self.iterations) + '-M-nSize-' + str(
                             self.netSize) + '-tstamp-' + tStamp
                 cv2.imwrite(preName + '.png', im_gen_grad)
@@ -359,30 +512,41 @@ class SiameseTrainWrapper(object):
                     stride,
                     ratio=highlighted_ratio)
                 preName_occ = 'modifiedNetResults_visu_occ/' + imlist[
-                    im1] + '-' + str(size_patch) + '-' + str(
+                    im1][:-4] + '-' + str(size_patch) + '-' + str(
                         stride) + '-' + '-M-nSize-' + str(
                             self.netSize) + '-tstamp-' + tStamp
 
                 im_gen_grad, heat_map_grad, heat_map_raw_grad = self.generate_heat_map_gradients(
-                    imageDict, imlist, im1, ratio=highlighted_ratio)
+                    imageDict,
+                    imlist,
+                    im1,
+                    ratio=highlighted_ratio,
+                    dilate_iterations=dilate_iteration)
                 preName_grad = 'modifiedNetResults_visu_grad/' + imlist[
-                    im1] + '-itera-' + str(
+                    im1][:-4] + '-itera-' + str(
                         self.iterations) + '-M-nSize-' + str(
                             self.netSize) + '-tstamp-' + tStamp
 
-                save = 1
+                save = 0
                 if save == 1:
                     cv2.imwrite(preName_grad + '.png', im_gen_grad)
+                save = 1
+                if save == 1:
                     cv2.imwrite(preName_occ + '.png', im_gen_occ)
                 #code for comparision
                 if compare == 1:
                     self.ov_lap_heat_map[i] = h2._analyse_heat_maps(
                         heat_map_occ, heat_map_grad)
                     print "overlap percentage", self.ov_lap_heat_map[i]
+                    self.class_fre[imageDict[imlist[im1]]] += 1
+                    self.class_ov_lap_heat_map[imageDict[imlist[
+                        im1]]] += self.ov_lap_heat_map[i]
+
         if compare == 1:
             print self.ov_lap_heat_map
-            import IPython
-            IPython.embed()
+            print self.class_ov_lap_heat_map / (self.class_fre + 0.000001)
+            #import IPython
+            #IPython.embed()
 
     def generate_heat_map_softmax(self,
                                   imageDict,
@@ -392,26 +556,44 @@ class SiameseTrainWrapper(object):
                                   stride,
                                   ratio=0.25):
         offset = 228
-        l_blobs_im1, l_occ_map = h2._get_occluded_image_blobs(
+        im = h2._load_image(
             img_name=self.data_folder + imlist[im1],
-            size_patch=size_patch,
-            stride=stride,
-            meanarr=self.meanarr,
             im_target_size=self.im_target_size)
         #print "no of occluded maps ", len(l_blobs_im1)
         blobs = {'data': None}
         heat_map = np.zeros((self.im_target_size, self.im_target_size))
 
-        for i in range(len(l_blobs_im1)):
-            blobs['data'] = l_blobs_im1[i]
-            blobs_out1 = self.siameseTestNet.forward(data=blobs['data'].astype(
-                np.float32, copy=True))
+        im_size1 = im.shape[0]
+        im_size2 = im.shape[1]
+        cR = -size_patch + 1
+        i = 0
+        while im_size1 - 1 >= cR - 1:
+            cC = -size_patch + 1
+            while im_size2 - 1 > cC - 1:
+                #print i
+                i = i + 1
+                #for i in range(len(l_blobs_im1)):
+                l_blobs_im1, l_occ_map = h2._get_occluded_image_blob(
+                    im=im,
+                    size_patch=size_patch,
+                    cR=cR,
+                    cC=cC,
+                    meanarr=self.meanarr,
+                    im_target_size=self.im_target_size)
+                blobs['data'] = l_blobs_im1
+                blobs_out1 = self.siameseTestNet.forward(
+                    data=blobs['data'].astype(
+                        np.float32, copy=True))
 
-            p = self.siameseTestNet.blobs['fc9_f'].data[0]
-            p = p - p.min()
-            p = p / p.sum()
-            prob1 = p[imageDict[imlist[im1]]]
-            heat_map += l_occ_map[i] * prob1
+                p = self.siameseTestNet.blobs['fc9_f'].data[0]
+                p = p - p.min()
+                p = p / p.sum()
+                prob1 = p[imageDict[imlist[im1]]]
+                heat_map += l_occ_map * prob1
+
+                cC += stride
+            cR += stride
+
         heat_map = heat_map[:offset, :offset]
         heat_map_o = (heat_map - heat_map.min()) / (
             heat_map.max() - heat_map.min())
@@ -443,7 +625,12 @@ class SiameseTrainWrapper(object):
         #cv2.destroyAllWindows()
         return img1.astype(np.uint8), heat_map.astype(np.uint8), heat_map_o
 
-    def generate_heat_map_gradients(self, imageDict, imlist, im1, ratio=0.25):
+    def generate_heat_map_gradients(self,
+                                    imageDict,
+                                    imlist,
+                                    im1,
+                                    ratio=0.25,
+                                    dilate_iterations=None):
         blobs = {'data': None}
         blobs['data'] = h2._get_image_blob(
             img_name=self.data_folder + imlist[im1],
@@ -472,9 +659,9 @@ class SiameseTrainWrapper(object):
         heat_map_raw = saliency.copy()
         kernel = np.ones((3, 3), np.uint8)
         #iterations = 5
-        if self.iterations > 0:
+        if dilate_iterations > 0:
             heat_map = cv2.dilate(
-                heat_map_raw, kernel, iterations=self.iterations)
+                heat_map_raw, kernel, iterations=dilate_iterations)
         else:
             heat_map = heat_map_raw.copy()
 
@@ -501,7 +688,7 @@ class SiameseTrainWrapper(object):
 
 
 def siameseTrainer(siameseSolver,
-                   fileName,
+                   fileName_test_visu,
                    pretrained_model,
                    pretrainedSiameseModel,
                    testProto,
@@ -510,6 +697,7 @@ def siameseTrainer(siameseSolver,
                    visu=0,
                    testProto1=None,
                    viz_tech=None,
+                   visu_all=False,
                    compare=0,
                    netSize=1000):
     sw = SiameseTrainWrapper(
@@ -528,7 +716,12 @@ def siameseTrainer(siameseSolver,
         sw.trainTest()
     elif visu == 0:
         print "testing with ", pretrainedSiameseModel
-        sw.test(fileName)
-    else:
-        print 'visalizing with ', pretrainedSiameseModel
-        sw.visualize(fileName, tech=viz_tech, compare=compare)
+        sw.test(fileName_test_visu)
+    elif visu == 1:
+        if visu_all == False:
+            print 'visalizing with ', pretrainedSiameseModel
+            sw.visualize(fileName_test_visu, tech=viz_tech, compare=compare)
+        else:
+            print 'visalizing all possible ', pretrainedSiameseModel
+            sw.visualize_all(
+                fileName_test_visu, tech=viz_tech, compare=compare)

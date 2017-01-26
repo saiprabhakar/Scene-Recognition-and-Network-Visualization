@@ -1,3 +1,9 @@
+Nvidia Switching:
+
+sudo update-alternatives --config x86_64-linux-gnu_gl_conf
+sudo ldconfig -n
+sudo update-initramfs -u
+
 CAFFE:
 
 Always switch to test mode while testing or use test_nets (more that one test nets are supported).

@@ -37,9 +37,12 @@ class MyLayer(caffe.Layer):
 
         #creating combinations of images
         import itertools
-        all_pairs = list(
-            itertools.product(
-                range(self.length_files), range(self.length_files)))
+        if self.testing == 0:
+            all_pairs = list(
+                itertools.product(
+                    range(self.length_files), range(self.length_files)))
+        else:
+            all_pairs = list(itertools.product(range(self.length_files), [0]))
         for i in range(len(all_pairs)):
             if self.image_list[all_pairs[i][0]][1] == self.image_list[
                     all_pairs[i][1]][1]:
@@ -48,6 +51,9 @@ class MyLayer(caffe.Layer):
             else:
                 self.n_pairs.append(all_pairs[i])
                 self.n_img += 1
+        #if self.testing == 1:
+        #    import IPython
+        #    IPython.embed()
 
         #return imageList
 
@@ -63,33 +69,42 @@ class MyLayer(caffe.Layer):
         # making the lengths of similar and dissimilar images equal
         m_pairs = self.m_pairs
         n_pairs = self.n_pairs
-        if len(m_pairs) >= len(n_pairs):
-            #ind = np.random.permutation(len(m_pairs) - len(n_pairs))
-            ind = len(m_pairs) - len(n_pairs)
-            for i in range(ind):
-                n_pairs.append(self.n_pairs[randint(0, len(self.n_pairs) - 1)])
-        else:
-            ind = len(n_pairs) - len(m_pairs)
-            for i in range(ind):
-                m_pairs.append(self.m_pairs[randint(0, len(self.m_pairs) - 1)])
+        if self.testing == 0:
+            if len(m_pairs) >= len(n_pairs):
+                #ind = np.random.permutation(len(m_pairs) - len(n_pairs))
+                ind = len(m_pairs) - len(n_pairs)
+                for i in range(ind):
+                    n_pairs.append(self.n_pairs[randint(0, len(self.n_pairs) -
+                                                        1)])
+            else:
+                ind = len(n_pairs) - len(m_pairs)
+                for i in range(ind):
+                    m_pairs.append(self.m_pairs[randint(0, len(self.m_pairs) -
+                                                        1)])
+
         return m_pairs, n_pairs
 
     def _shuffle_pair_ids(self):
         """Makes the positive and negative samples equal.
-
         Shuffles the data pairs.
         """
-        # print "shufle called"
         m_c_pairs, n_c_pairs = self._get_corrected_pairs()
         self._all_m_pairs = m_c_pairs + n_c_pairs
-        print "total images in dataset ", len(self._all_m_pairs)
-        self._perm = np.random.permutation(np.arange(len(self._all_m_pairs)))
+        # print "total images in dataset ", len(self._all_m_pairs)
+        if self.testing == 1:
+            #print "shufle called"
+            self._perm = np.random.permutation(
+                np.arange(len(self._all_m_pairs)))
+        else:
+            self._perm = np.array(range(len(self._all_m_pairs)))
         self._cur = 0
 
     def _get_next_m_batch_ids_pair(self):
         """Creates next mini batch file ids, depending on batch size.
         """
-        if self._cur + self.batch_size >= len(self._all_m_pairs):
+        #if self.testing == 1:
+        #    print self._cur, self.batch_size, len(self._all_m_pairs)
+        if self._cur + self.batch_size > len(self._all_m_pairs) - 1:
             # print self._cur, self.batch_size, len(self._all_m_pairs)
             self._shuffle_pair_ids()
         perm_ind = self._perm[self._cur:self._cur + self.batch_size]
@@ -135,13 +150,14 @@ class MyLayer(caffe.Layer):
         layer_params = yaml.load(self.param_str)
         #source_params = yaml.load(self.image_str)
         #mean_params = yaml.load(self.mean_str)
-
+        self.testing = layer_params["test"]
         self.source_file = layer_params["file_name"]
         self.image_source = layer_params["image_source"]
         self._parse_file(self.source_file, self.image_source)
         self._cur = 0
         self.batch_size = layer_params["batch_size"]
         self._shuffle_pair_ids()
+        print "total images in dataset ", len(self._all_m_pairs)
 
         self.final_image_size = layer_params["final_image_size"]
         self.scale_min_size = layer_params["scale_min_size"]

@@ -13,7 +13,7 @@ layer {
   python_param {
     module: 'mypythonlayer2'
     layer: 'MyLayer'
-    param_str: '{"batch_size": 1, "final_image_size": 227, "scale_min_size": 256, "num_channels": 3, "file_name": "data/imagelist.txt", "mean_image": "placesOriginalModel/places205CNN_mean.binaryproto", "image_source": "data/"}'
+    param_str: '{"batch_size": 1, "final_image_size": 227, "scale_min_size": 256, "num_channels": 3, "file_name": "data/imagelist_train_1.txt", "mean_image": "placesOriginalModel/places205CNN_mean.binaryproto", "image_source": "data/", "test": 0}'
   }
 }
 layer {
@@ -26,11 +26,30 @@ layer {
   top: 'label2'
   include {
     phase: TEST
+    stage: "verification"
   }
   python_param {
     module: 'mypythonlayer2'
     layer: 'MyLayer'
-    param_str: '{"batch_size": 1, "final_image_size": 227, "scale_min_size": 256, "num_channels": 3, "file_name": "data/imagelist_test.txt", "mean_image": "placesOriginalModel/places205CNN_mean.binaryproto", "image_source": "data/"}'
+    param_str: '{"batch_size": 1, "final_image_size": 227, "scale_min_size": 256, "num_channels": 3, "file_name": "data/imagelist_verification_1.txt", "mean_image": "placesOriginalModel/places205CNN_mean.binaryproto", "image_source": "data/", "test": 0}'
+  }
+}
+layer {
+  name: 'PythonLayer'
+  type: 'Python'
+  top: 'data'
+  top: 'data_p'
+  top: 'sim'
+  top: 'label1'
+  top: 'label2'
+  include {
+    phase: TEST
+    stage: "test"
+  }
+  python_param {
+    module: 'mypythonlayer2'
+    layer: 'MyLayer'
+    param_str: '{"batch_size": 1, "final_image_size": 227, "scale_min_size": 256, "num_channels": 3, "file_name": "data/imagelist_test_1.txt", "mean_image": "placesOriginalModel/places205CNN_mean.binaryproto", "image_source": "data/", "test": 1}'
   }
 }
 
@@ -839,7 +858,7 @@ layer {
   #}
   top: "cont_loss"
   contrastive_loss_param {
-    margin: 10
+    margin: 5
   }
   loss_weight: 0.5
 }

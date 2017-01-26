@@ -14,12 +14,14 @@ pretrained_model_proto = 'placesOriginalModel/places_processed.prototxt'
 pretrained_model = 'placesOriginalModel/places205CNN_iter_300000_upgraded.caffemodel'
 siameseSolver = 'modifiedSiameseModels/siamesePlaces_' + str(
     netSize) + '_solver.prototxt'
-fileName = 'data/imagelist.txt'
+fileName_test_visu = 'data/imagelist_all.txt'
 
 #to visualize toggle train and visu
 #to test toggle only train
-train = 1
-visu = 0
+#to save all the possible masks of visualization use visu_all_pos and visu
+train = 0
+visu = 1
+visu_all_pos = True
 
 #specify the technique used to visualize the network
 #tech = 'grad'
@@ -27,10 +29,11 @@ tech = 'both'
 #tech = 'grad'
 
 testProto1 = None
-compare = 0
+compare = 1
 if visu == 1:
     #load appropriate model while testing
-    pretrainedSiameseModel = 'modifiedNetResults/Modified-netsize-1000-epoch-4-tstamp--Timestamp-2016-12-23-05:23:20-net-final.caffemodel'
+    #pretrainedSiameseModel = 'modifiedNetResults/Modified-netsize-1000-epoch-4-tstamp--Timestamp-2016-12-23-05:23:20-net-final.caffemodel'
+    pretrainedSiameseModel = 'modifiedNetResults/Modified-netsize-1000-epoch-18-tstamp--Timestamp-2017-01-22-20:02:03-net.caffemodel'
     if tech == 'both':
         testProto = 'modifiedSiameseModels/extracted_siamesePlaces_' + str(
             netSize) + '_test.prototxt'
@@ -52,7 +55,7 @@ else:
 siameseTrainer(
     siameseSolver=siameseSolver,
     pretrainedSiameseModel=pretrainedSiameseModel,
-    fileName=fileName,
+    fileName_test_visu=fileName_test_visu,
     pretrained_model=pretrained_model,
     pretrained_model_proto=pretrained_model_proto,
     testProto=testProto,
@@ -60,5 +63,6 @@ siameseTrainer(
     compare=compare,
     train=train,
     visu=visu,
+    visu_all=visu_all_pos,
     viz_tech=tech,
     netSize=netSize)

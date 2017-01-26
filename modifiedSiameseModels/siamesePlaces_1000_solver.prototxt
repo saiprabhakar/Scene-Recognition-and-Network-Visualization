@@ -1,9 +1,16 @@
-train_net: "modifiedSiameseModels/siamesePlaces_1000.prototxt"
-test_net: "modifiedSiameseModels/siamesePlaces_1000.prototxt"
-base_lr: 0.00001
+#train_net: "modifiedSiameseModels/siamesePlaces_1000.prototxt"
+#test_net: "modifiedSiameseModels/siamesePlaces_1000.prototxt"
+net: "modifiedSiameseModels/siamesePlaces_1000.prototxt"
+#######
+test_state: { stage: "verification"}
+test_state: { stage: "test"}
 #currently not using auto test features
+test_iter: 0
+test_iter: 0
 test_interval: 1000000
-test_iter: 1
+######
+base_lr: 0.000001
+#base_lr: 0.00001
 lr_policy: "step"
 #high gamma since our data is very less
 gamma: 0.99

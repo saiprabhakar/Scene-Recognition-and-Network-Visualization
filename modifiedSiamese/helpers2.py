@@ -78,34 +78,20 @@ def _load_image(img_name, im_target_size):
     return im.copy()
 
 
-def _get_occluded_image_blobs(img_name, size_patch, stride, meanarr,
-                              im_target_size):
-    im = _load_image(img_name, im_target_size)
-
+def _get_occluded_image_blob(im, size_patch, cR, cC, meanarr, im_target_size):
     l_blob = []
     l_occ_map = []
-    im_size1 = im.shape[0]
-    im_size2 = im.shape[1]
-    cR = -size_patch + 1
-    while im_size1 - 1 >= cR - 1:
-        cC = -size_patch + 1
-        while im_size2 - 1 > cC - 1:
-            #import IPython
-            #IPython.embed()
-            occluded_image, occ_map = _occlude_image(
-                im.copy(), cR, cC, size_patch, stride, im_target_size)
-            cC += stride
-
-            #cv2.namedWindow('image', cv2.WINDOW_NORMAL)
-            #cv2.imshow('image',occluded_image.astype(np.uint8))
-            #cv2.waitKey(0)
-            #cv2.destroyAllWindows()
-
-            processed_ims = occluded_image - meanarr
-            l_blob.append(im_to_blob(processed_ims))
-            l_occ_map.append(occ_map)
-        cR += stride
-
+    #import IPython
+    #IPython.embed()
+    occluded_image, occ_map = _occlude_image(im.copy(), cR, cC, size_patch,
+                                             im_target_size)
+    #cv2.namedWindow('image', cv2.WINDOW_NORMAL)
+    #cv2.imshow('image',occluded_image.astype(np.uint8))
+    #cv2.waitKey(0)
+    #cv2.destroyAllWindows()
+    processed_ims = occluded_image - meanarr
+    l_blob = im_to_blob(processed_ims)
+    l_occ_map = occ_map
     return l_blob, l_occ_map
 
 
@@ -126,7 +112,7 @@ def _get_coordinates(cR, cC, size_patch, maxRow, maxCol):
     return r1, r2, c1, c2
 
 
-def _occlude_image(im, cR, cC, size_patch, stride, im_target_size):
+def _occlude_image(im, cR, cC, size_patch, im_target_size):
     """creates gray patches in image."""
     r1, r2, c1, c2 = _get_coordinates(cR, cC, size_patch, im.shape[0],
                                       im.shape[1])
