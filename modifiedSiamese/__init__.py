@@ -5,4 +5,5 @@
 # --------------------------------------------------------
 
 from . import SiameseTrainer
+from . import analyse_vis
 from . import helpers

@@ -5,6 +5,7 @@
 # --------------------------------------------------------
 
 from modifiedSiamese.SiameseTrainer import *
+from modifiedSiamese.analyse_vis import *
 
 ###change the fc8 layer size here
 ###make sure you have created the appropriate prototxt files first
@@ -61,20 +62,29 @@ else:
     testProto = None
     pretrainedSiameseModel = None
 
-siameseTrainer(
-    siameseSolver=siameseSolver,
-    pretrainedSiameseModel=pretrainedSiameseModel,
-    fileName_test_visu=fileName_test_visu,
-    pretrained_model=pretrained_model,
-    pretrained_model_proto=pretrained_model_proto,
-    testProto=testProto,
-    testProto1=testProto1,
-    compare=compare,
-    train=train,
-    visu=visu,
-    visu_all=visu_all_pos,
-    visu_all_save_dir=visu_all_save_dir,
-    visu_all_analyse_dir=visu_all_analyse_dir,
-    analyse_all_visualizations=analyse_all_visualizations,
-    viz_tech=tech,
-    netSize=netSize)
+if analyse_all_visualizations == 1:
+    analyseNet(
+        pretrainedSiameseModel=pretrainedSiameseModel,
+        testProto=testProto,
+        analyse_all_visualizations=analyse_all_visualizations,
+        visu_all_analyse_dir=visu_all_analyse_dir,
+        fileName_test_visu=fileName_test_visu,
+        viz_tech=tech,
+        netSize=netSize)
+else:
+    siameseTrainer(
+        siameseSolver=siameseSolver,
+        pretrainedSiameseModel=pretrainedSiameseModel,
+        fileName_test_visu=fileName_test_visu,
+        pretrained_model=pretrained_model,
+        pretrained_model_proto=pretrained_model_proto,
+        testProto=testProto,
+        testProto1=testProto1,
+        compare=compare,
+        train=train,
+        visu=visu,
+        visu_all=visu_all_pos,
+        visu_all_save_dir=visu_all_save_dir,
+        visu_all_analyse_dir=visu_all_analyse_dir,
+        viz_tech=tech,
+        netSize=netSize)

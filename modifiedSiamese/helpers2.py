@@ -10,6 +10,19 @@ import cv2
 from pythonlayers.helpers import *
 
 
+def _combine_images(img1, mask, img2):
+    """Copy masked regions of img2 to img1
+    img2 - original image
+    img1 - blur image
+    mask - visualized mask
+    """
+    n_mask = abs(1 - mask)
+    n_mask = np.repeat(n_mask[:, :, np.newaxis], 3, axis=2)
+    mask = np.repeat(mask[:, :, np.newaxis], 3, axis=2)
+
+    return mask * img2 + n_mask * img1
+
+
 def _analyse_heat_maps(heat_map1, heat_map2):
     ovlap_count = (heat_map1 & heat_map2).sum().astype(float)
     union_count = (heat_map1 | heat_map2).sum()
@@ -59,9 +72,15 @@ def _get_image_blob(img_name, meanarr, im_target_size):
     return blob
 
 
+def _get_image_blob_from_image(im, meanarr, im_target_size):
+    processed_ims = im - meanarr
+    blob = im_to_blob(processed_ims)
+    return blob
+
+
 def _load_image(img_name, im_target_size):
     im = cv2.imread(img_name)
-    im_orig = im.astype(np.float32, copy=True)
+    im = im.astype(np.float32, copy=True)
 
     min_curr_size = min(im.shape[:2])
     im_scale = float(im_target_size) / float(min_curr_size)
@@ -69,7 +88,7 @@ def _load_image(img_name, im_target_size):
     #im_scaley = float(im_target_size) / float(im_size[0])
     #im_scalex = float(im_target_size) / float(im_size[1])
     im = cv2.resize(
-        im_orig[:min_curr_size, :min_curr_size, :],
+        im[:min_curr_size, :min_curr_size, :],
         None,
         None,
         fx=im_scale,

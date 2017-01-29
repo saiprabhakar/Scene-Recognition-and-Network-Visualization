@@ -43,7 +43,6 @@ class SiameseTrainWrapper(object):
                  testProto1=None,
                  netSize=1000,
                  visu=0,
-                 analysis=0,
                  tech=None,
                  class_size=6,
                  class_adju=2):
@@ -90,12 +89,6 @@ class SiameseTrainWrapper(object):
                 assert testProto1 != None
                 self.siameseTestNet_grad = caffe.Net(
                     testProto1, pretrainedSiameseModel, caffe.TEST)
-        elif analysis == 1:
-            print 'anaysis net initializing'
-            assert testProto != None
-            assert pretrainedSiameseModel != None
-            self.siameseTestNet = caffe.Net(testProto, pretrainedSiameseModel,
-                                            caffe.TEST)
         else:
             assert testProto != None
             assert pretrainedSiameseModel != None
@@ -695,26 +688,6 @@ class SiameseTrainWrapper(object):
         #plt.show()
         return img1.astype(np.uint8), heat_map.astype(np.uint8), saliency
 
-    def analyse_visualizations(self, visu_all_analyse_dir):
-        """Analysing visualizations saved in the files
-        """
-
-        visu_file_s = [f for f in listdir(visu_all_analyse_dir)
-                       if (isfile(join(visu_all_analyse_dir, f)) and
-                           os.path.splitext(f)[1] == '.pickle')]
-
-        for i in range(len(visu_file_s)):
-            visu_file = visu_all_analyse_dir + visu_file_s[i]
-            with open(visu_file) as f:
-                im_name, tech_s, size_patch_s, dilate_iteration_s, heat_map_occ_s, heat_map_raw_occ_s, heat_map_grad_s, heat_map_raw_grad_s = pickle.load(
-                    f)
-
-            im = h2._load_image(
-                img_name=self.data_folder + im_name,
-                im_target_size=self.im_target_size)
-            import IPython
-            IPython.embed()
-
 
 def siameseTrainer(siameseSolver,
                    fileName_test_visu,
@@ -728,7 +701,6 @@ def siameseTrainer(siameseSolver,
                    viz_tech=None,
                    visu_all=False,
                    visu_all_save_dir=None,
-                   analyse_all_visualizations=0,
                    visu_all_analyse_dir=None,
                    compare=0,
                    netSize=1000):
@@ -741,7 +713,6 @@ def siameseTrainer(siameseSolver,
         testProto1=testProto1,
         train=train,
         visu=visu,
-        analysis=analyse_all_visualizations,
         tech=viz_tech,
         netSize=netSize)
     if train == 1:
@@ -758,9 +729,6 @@ def siameseTrainer(siameseSolver,
                 tech=viz_tech,
                 compare=compare,
                 visu_all_save_dir=visu_all_save_dir)
-    elif analyse_all_visualizations == 1:
-        print 'analysing all visualization'
-        sw.analyse_visualizations(visu_all_analyse_dir)
     elif visu == 0:
         print 'testing not implemented'
         #print "testing with ", pretrainedSiameseModel
