@@ -16,7 +16,7 @@ pretrained_model = 'placesOriginalModel/places205CNN_iter_300000_upgraded.caffem
 siameseSolver = 'modifiedSiameseModels/siamesePlaces_' + str(
     netSize) + '_solver.prototxt'
 fileName_test_visu = 'data/imagelist_all.txt'
-
+meanfile = 'placesOriginalModel/places205CNN_mean.binaryproto'
 #to visualize toggle train and visu
 #to test toggle only train
 #to save all the possible masks of visualization use visu_all_pos and visu

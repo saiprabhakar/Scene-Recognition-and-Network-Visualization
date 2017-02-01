@@ -46,3 +46,8 @@ Methods considered:
 
   1. Occulsion heat map (siamese and modified siamese net)
   2. Class Saliency map (modified siamese net)
+
+
+# to train modified siamese use trainModifiedSiamese.py -> modifiedSiamese/SiameseTrainer.py
+# to visualize any network use visuModels.py -> modifiedSiamese/SiameseTrainer.py
+# to analyse visualized files use visuModels.py -> modifiedSiamese/analyse_visu.py

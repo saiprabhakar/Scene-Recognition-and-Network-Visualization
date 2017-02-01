@@ -8,6 +8,30 @@
 import numpy as np
 import cv2
 from pythonlayers.helpers import *
+import matplotlib.pyplot as plt
+import warnings
+import matplotlib.cbook
+warnings.filterwarnings("ignore", category=matplotlib.cbook.mplDeprecation)
+
+
+def _get_prob(p, class_index_n):
+    p = p - p.min()
+    p = p / p.sum()
+    prob1 = p[class_index_n]
+    return prob1
+
+
+def plot_images(img1, img2, img3):
+    plt.subplot(131), plt.imshow(img1[:, :, ::-1].astype(np.uint8)), plt.title(
+        'Original')
+    plt.xticks([]), plt.yticks([])
+    plt.subplot(132), plt.imshow(img2[:, :, ::-1].astype(np.uint8)), plt.title(
+        'Averaging')
+    plt.xticks([]), plt.yticks([])
+    plt.subplot(133), plt.imshow(img3[:, :, ::-1].astype(np.uint8)), plt.title(
+        'final')
+    plt.xticks([]), plt.yticks([])
+    plt.show()
 
 
 def _combine_images(img1, mask, img2):
@@ -129,6 +153,10 @@ def _get_coordinates(cR, cC, size_patch, maxRow, maxCol):
         c2 = maxCol
 
     return r1, r2, c1, c2
+
+
+def _find_percentage_mask(mask):
+    return 100 * float(mask.sum()) / (mask.size)
 
 
 def _occlude_image(im, cR, cC, size_patch, im_target_size):

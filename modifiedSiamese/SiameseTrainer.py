@@ -44,6 +44,8 @@ class SiameseTrainWrapper(object):
                  netSize=1000,
                  visu=0,
                  tech=None,
+                 netName=None,
+                 meanfile='',
                  class_size=6,
                  class_adju=2):
         """Initialize the SolverWrapper."""
@@ -52,14 +54,14 @@ class SiameseTrainWrapper(object):
         #caffe.set_mode_cpu()
         self.train = train
         self.netSize = netSize
+        self.netName = netName
         self.class_size = class_size
         self.class_adju = class_adju
         self.data_folder = 'data/'
         self.im_target_size = 227
         self.viz_tech = tech
         self.meanarr = h2._load_mean_binaryproto(
-            fileName='placesOriginalModel/places205CNN_mean.binaryproto',
-            im_target_size=self.im_target_size)
+            fileName=meanfile, im_target_size=self.im_target_size)
 
         if self.train == 1:
 
@@ -361,8 +363,9 @@ class SiameseTrainWrapper(object):
     def visualize_all(self, fileName, tech, compare, visu_all_save_dir):
         ''' Visualizing all and saving
         '''
-        tStamp = '-Timestamp-{:%Y-%m-%d-%H:%M:%S}'.format(
-            datetime.datetime.now())
+        #tStamp = '-Timestamp-{:%Y-%m-%d-%H:%M:%S}'.format(
+        #    datetime.datetime.now())
+        tStamp = ''
         f = open(fileName)
         lines = [line.rstrip('\n') for line in f]
         imageDict = {}
@@ -376,7 +379,7 @@ class SiameseTrainWrapper(object):
         heat_map_raw_grad_s = {}
 
         size_patch_s = [10, 50, 100]
-        dilate_iteration_s = [0, 2, 5, 10]
+        dilate_iteration_s = [0, 2]
         tech_s = ['occ', 'grad']
 
         for i in lines:
@@ -407,6 +410,11 @@ class SiameseTrainWrapper(object):
                         ratio=highlighted_ratio)
                     heat_map_occ_s[i] = heat_map_occ
                     heat_map_raw_occ_s[i] = heat_map_raw_occ
+                    preName = self.netName + '_NetResults_visu_occ/' + imlist[
+                        im1][:-4] + '-' + str(size_patch) + '-' + str(
+                            stride) + '-' + '-M-nSize-' + str(
+                                self.netSize) + '-tstamp-' + tStamp
+                    cv2.imwrite(preName + '.png', im_gen_occ)
             else:
                 heat_map_occ_s[i] = heat_map_raw_occ_s[i] = None
 
@@ -424,6 +432,11 @@ class SiameseTrainWrapper(object):
                         dilate_iterations=dilate_iteration)
                     heat_map_grad_s[i] = heat_map_grad
                     heat_map_raw_grad_s[i] = heat_map_raw_grad
+                    preName = self.netName + '_NetResults_visu_grad/' + imlist[
+                        im1][:-4] + '-itera-' + str(
+                            dilate_iteration) + '-M-nSize-' + str(
+                                self.netSize) + '-tstamp-' + tStamp
+                    cv2.imwrite(preName + '.png', im_gen_grad)
             else:
                 heat_map_grad_s[i] = heat_map_raw_grad_s[i] = None
 
@@ -433,10 +446,10 @@ class SiameseTrainWrapper(object):
 
             if save == 1:
                 with open(preName + '.pickle', 'w') as f:
-                    pickle.dump(
-                        [imlist[im1], tech_s, size_patch_s, dilate_iteration_s,
-                         heat_map_occ_s, heat_map_raw_occ_s, heat_map_grad_s,
-                         heat_map_raw_grad_s], f)
+                    pickle.dump([imlist[im1], imageDict[imlist[im1]], tech_s,
+                                 size_patch_s, dilate_iteration_s,
+                                 heat_map_occ_s, heat_map_raw_occ_s,
+                                 heat_map_grad_s, heat_map_raw_grad_s], f)
 
         #import IPython
         #IPython.embed()
@@ -444,8 +457,9 @@ class SiameseTrainWrapper(object):
     def visualize(self, fileName, tech, compare):
         ''' Visualizing using gray occlusion patches or gradients of input image
         '''
-        tStamp = '-Timestamp-{:%Y-%m-%d-%H:%M:%S}'.format(
-            datetime.datetime.now())
+        #tStamp = '-Timestamp-{:%Y-%m-%d-%H:%M:%S}'.format(
+        #    datetime.datetime.now())
+        tStamp = ''
         f = open(fileName)
         lines = [line.rstrip('\n') for line in f]
         imageDict = {}
@@ -557,7 +571,6 @@ class SiameseTrainWrapper(object):
                                   size_patch,
                                   stride,
                                   ratio=0.25):
-        offset = 228
         im = h2._load_image(
             img_name=self.data_folder + imlist[im1],
             im_target_size=self.im_target_size)
@@ -587,18 +600,17 @@ class SiameseTrainWrapper(object):
                     data=blobs['data'].astype(
                         np.float32, copy=True))
 
-                p = self.siameseTestNet.blobs['fc9_f'].data[0]
-                p = p - p.min()
-                p = p / p.sum()
-                prob1 = p[imageDict[imlist[im1]]]
+                p = self.siameseTestNet.blobs['fc9_f'].data[0].copy()
+                prob1 = h2._get_prob(p, imageDict[imlist[im1]])
                 heat_map += l_occ_map * prob1
 
                 cC += stride
             cR += stride
 
-        heat_map = heat_map[:offset, :offset]
         heat_map_o = (heat_map - heat_map.min()) / (
             heat_map.max() - heat_map.min())
+        import IPython
+        IPython.embed()
         img1 = h2._load_image(
             self.data_folder + imlist[im1], im_target_size=self.im_target_size)
         heat_map = heat_map_o.copy()
@@ -703,6 +715,8 @@ def siameseTrainer(siameseSolver,
                    visu_all_save_dir=None,
                    visu_all_analyse_dir=None,
                    compare=0,
+                   net=None,
+                   meanfile='',
                    netSize=1000):
     sw = SiameseTrainWrapper(
         siameseSolver,
@@ -713,6 +727,8 @@ def siameseTrainer(siameseSolver,
         testProto1=testProto1,
         train=train,
         visu=visu,
+        netName=net,
+        meanfile=meanfile,
         tech=viz_tech,
         netSize=netSize)
     if train == 1:
