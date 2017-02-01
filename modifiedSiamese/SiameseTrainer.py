@@ -609,16 +609,11 @@ class SiameseTrainWrapper(object):
 
         heat_map_o = (heat_map - heat_map.min()) / (
             heat_map.max() - heat_map.min())
-        import IPython
-        IPython.embed()
-        img1 = h2._load_image(
-            self.data_folder + imlist[im1], im_target_size=self.im_target_size)
+        #invert the heat map
+        heat_map_o = 1.0 - heat_map_o
         heat_map = heat_map_o.copy()
 
-        #invert the heat map
-        heat_map = 1.0 - heat_map
         threshold = h2._find_threshold(heat_map, ratio)
-
         heat_map[heat_map < threshold] = 0
         heat_map[heat_map >= threshold] = 1
         heat_map *= 1
@@ -626,6 +621,8 @@ class SiameseTrainWrapper(object):
         #plt.colorbar()
         #plt.show()
 
+        img1 = h2._load_image(
+            self.data_folder + imlist[im1], im_target_size=self.im_target_size)
         img1_o = img1.copy()
         temp = np.sum(img1, axis=2) / 3.0
         img1[:, :, 2] = temp

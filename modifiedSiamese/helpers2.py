@@ -76,6 +76,14 @@ def _load_mean_binaryproto(
     return meanarr
 
 
+def _get_mask_from_raw_map(raw_map, ratio):
+    threshold = _find_threshold(raw_map, ratio)
+    heat_map = np.zeros(raw_map.shape)
+    heat_map[raw_map < threshold] = 0
+    heat_map[raw_map >= threshold] = 1
+    return heat_map
+
+
 def _find_threshold(h_map, ratio):
     assert ratio <= 1.0
     temp = np.sort(

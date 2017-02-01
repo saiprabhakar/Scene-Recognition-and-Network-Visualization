@@ -47,10 +47,11 @@ class AnalyseVisualizations(object):
         caffe.set_mode_gpu()
         self.netSize = netSize
         self.class_size = class_size
+        self.heat_map_ratio = 0.25  #####
         self.class_adju = class_adju
-        self.data_folder = 'data/'
-        self.im_target_size = 227
-        self.max_grow_iter = 30
+        self.data_folder = 'data/'  #####
+        self.im_target_size = 227  #####
+        self.max_grow_iter = 300
         self.meanarr = h2._load_mean_binaryproto(
             fileName=meanfile, im_target_size=self.im_target_size)
 
@@ -80,7 +81,7 @@ class AnalyseVisualizations(object):
                 f)
 
         # different ways to combine the images
-        combine_tech_s = ["black", "blur"]
+        combine_tech_s = ["blur", "black"]
         for p in range(len(combine_tech_s)):
             combine_tech = combine_tech_s[p]
             o_rel_inc = np.zeros((len(visu_file_s), len(size_patch_s)))
@@ -90,18 +91,21 @@ class AnalyseVisualizations(object):
                 (len(visu_file_s), len(size_patch_s)))
             g_req_mask_percent = np.zeros(
                 (len(visu_file_s), len(dilate_iteration_s)))
-            o_req_dilate_iter = np.zeros((len(visu_file_s), len(size_patch_s)))
+            o_req_dilate_iter = np.zeros(
+                (len(visu_file_s), len(size_patch_s))) - 2
             g_req_dilate_iter = np.zeros(
-                (len(visu_file_s), len(dilate_iteration_s)))
+                (len(visu_file_s), len(dilate_iteration_s))) - 2
             images = []
             # for all files
             for i in range(len(visu_file_s)):
                 visu_file = visu_all_analyse_dir + visu_file_s[i]
                 # load files
-                # TODO create heat_map from heat_map_raw
                 with open(visu_file) as f:
-                    im_name, class_index, tech_s, size_patch_s, dilate_iteration_s, heat_map_occ_s, heat_map_raw_occ_s, heat_map_grad_s, heat_map_raw_grad_s = pickle.load(
+                    im_name, class_index, tech_s, size_patch_s, dilate_iteration_s, heat_map_occ_s_25, heat_map_raw_occ_s, heat_map_grad_s_25, heat_map_raw_grad_s = pickle.load(
                         f)
+
+                #import IPython
+                #IPython.embed()
 
                 # load image and find prob
                 images.append(im_name)
@@ -126,18 +130,21 @@ class AnalyseVisualizations(object):
                 elif combine_tech == "black":
                     mod_img = np.zeros(img.shape)
                     mod_prob = 0.0
-                    all_prob = [0, 0]
+                    all_prob = np.array([0, 0])
                 else:
                     print "not implemented"
                     assert 1 == 2
-                #print combine_tech, orig_prob, mod_prob, all_prob
+                print combine_tech, orig_prob, class_index, mod_prob, all_prob.argmax(
+                ), class_index == all_prob.argmax()
 
                 # combine modified and original image-- ignore is the difference is
                 # less than 5 percent
-                if orig_prob - mod_prob > .05:
+                # TODO is this necessary
+                if orig_prob - mod_prob > 0.0:
                     # using occlusion visualization
                     for k in range(len(size_patch_s)):
-                        heat_mask_o = heat_map_occ_s[k]
+                        heat_map_o = h2._get_mask_from_raw_map(
+                            heat_map_raw_occ_s[k], self.heat_map_ratio)
                         pred_class_index, c_prob, c_all_prob = self.combine_and_predict(
                             mod_img, heat_mask_o, img, class_index)
                         # find relative increase in network confidence
@@ -146,6 +153,7 @@ class AnalyseVisualizations(object):
                         #print "occ", size_patch_s[k], c_prob, c_all_prob, rel_inc
                         o_rel_inc[i, k] = rel_inc
                         # put this inside a function too?
+                        #TODO save final modified image and mask,
                         if pred_class_index == class_index:
                             req_dilate_iter = 0
                             req_percent = h2._find_percentage_mask(heat_mask_o)
@@ -161,7 +169,8 @@ class AnalyseVisualizations(object):
 
                     # using gradient visualization
                     for k in range(len(dilate_iteration_s)):
-                        heat_mask_g = heat_map_grad_s[k]
+                        heat_map_g = h2._get_mask_from_raw_map(
+                            heat_map_raw_grad_s[k], self.heat_map_ratio)
                         pred_class_index, c_prob, c_all_prob = self.combine_and_predict(
                             mod_img, heat_mask_g, img, class_index)
 
@@ -170,7 +179,6 @@ class AnalyseVisualizations(object):
                         #print "grad", dilate_iteration_s[k], c_prob, c_all_prob, rel_inc
                         g_rel_inc[i, k] = rel_inc
                         # put this inside a function too?
-                        # TODO manually check this for blur -- too good to be true
                         if pred_class_index == class_index:
                             req_dilate_iter = 0
                             req_percent = h2._find_percentage_mask(heat_mask_g)
