@@ -1,12 +1,9 @@
-name: "Modified-SiamesePlaces205-CNN-test-grad"
+name: "CaffeNet-Places365-grad"
 input: "data"
-input_shape {
-  dim: 1
-  dim: 3
-  dim: 227
-  dim: 227
-}
-
+input_dim: 1
+input_dim: 3
+input_dim: 227
+input_dim: 227
 force_backward: true
 
 layer {
@@ -15,12 +12,10 @@ layer {
   bottom: "data"
   top: "conv1"
   param {
-    name: "conv1_w"
     lr_mult: 1
     decay_mult: 1
   }
   param {
-    name: "conv1_b"
     lr_mult: 2
     decay_mult: 0
   }
@@ -39,16 +34,16 @@ layer {
   }
 }
 layer {
-  bottom: "conv1"
-  top: "conv1"
   name: "relu1"
   type: "ReLU"
+  bottom: "conv1"
+  top: "conv1"
 }
 layer {
-  bottom: "conv1"
-  top: "pool1"
   name: "pool1"
   type: "Pooling"
+  bottom: "conv1"
+  top: "pool1"
   pooling_param {
     pool: MAX
     kernel_size: 3
@@ -56,10 +51,10 @@ layer {
   }
 }
 layer {
-  bottom: "pool1"
-  top: "norm1"
   name: "norm1"
   type: "LRN"
+  bottom: "pool1"
+  top: "norm1"
   lrn_param {
     local_size: 5
     alpha: 0.0001
@@ -67,17 +62,15 @@ layer {
   }
 }
 layer {
-  bottom: "norm1"
-  top: "conv2"
   name: "conv2"
   type: "Convolution"
+  bottom: "norm1"
+  top: "conv2"
   param {
-    name: "conv2_w"
     lr_mult: 1
     decay_mult: 1
   }
   param {
-    name: "conv2_b"
     lr_mult: 2
     decay_mult: 0
   }
@@ -97,16 +90,16 @@ layer {
   }
 }
 layer {
-  bottom: "conv2"
-  top: "conv2"
   name: "relu2"
   type: "ReLU"
+  bottom: "conv2"
+  top: "conv2"
 }
 layer {
-  bottom: "conv2"
-  top: "pool2"
   name: "pool2"
   type: "Pooling"
+  bottom: "conv2"
+  top: "pool2"
   pooling_param {
     pool: MAX
     kernel_size: 3
@@ -114,10 +107,10 @@ layer {
   }
 }
 layer {
-  bottom: "pool2"
-  top: "norm2"
   name: "norm2"
   type: "LRN"
+  bottom: "pool2"
+  top: "norm2"
   lrn_param {
     local_size: 5
     alpha: 0.0001
@@ -125,17 +118,15 @@ layer {
   }
 }
 layer {
-  bottom: "norm2"
-  top: "conv3"
   name: "conv3"
   type: "Convolution"
+  bottom: "norm2"
+  top: "conv3"
   param {
-    name: "conv3_w"
     lr_mult: 1
     decay_mult: 1
   }
   param {
-    name: "conv3_b"
     lr_mult: 2
     decay_mult: 0
   }
@@ -154,23 +145,21 @@ layer {
   }
 }
 layer {
-  bottom: "conv3"
-  top: "conv3"
   name: "relu3"
   type: "ReLU"
+  bottom: "conv3"
+  top: "conv3"
 }
 layer {
-  bottom: "conv3"
-  top: "conv4"
   name: "conv4"
   type: "Convolution"
+  bottom: "conv3"
+  top: "conv4"
   param {
-    name: "conv4_w"
     lr_mult: 1
     decay_mult: 1
   }
   param {
-    name: "conv4_b"
     lr_mult: 2
     decay_mult: 0
   }
@@ -190,23 +179,21 @@ layer {
   }
 }
 layer {
-  bottom: "conv4"
-  top: "conv4"
   name: "relu4"
   type: "ReLU"
+  bottom: "conv4"
+  top: "conv4"
 }
 layer {
-  bottom: "conv4"
-  top: "conv5"
   name: "conv5"
   type: "Convolution"
+  bottom: "conv4"
+  top: "conv5"
   param {
-    name: "conv5_w"
     lr_mult: 1
     decay_mult: 1
   }
   param {
-    name: "conv5_b"
     lr_mult: 2
     decay_mult: 0
   }
@@ -226,16 +213,16 @@ layer {
   }
 }
 layer {
-  bottom: "conv5"
-  top: "conv5"
   name: "relu5"
   type: "ReLU"
+  bottom: "conv5"
+  top: "conv5"
 }
 layer {
-  bottom: "conv5"
-  top: "pool5"
   name: "pool5"
   type: "Pooling"
+  bottom: "conv5"
+  top: "pool5"
   pooling_param {
     pool: MAX
     kernel_size: 3
@@ -243,17 +230,15 @@ layer {
   }
 }
 layer {
-  bottom: "pool5"
-  top: "fc6"
   name: "fc6"
   type: "InnerProduct"
+  bottom: "pool5"
+  top: "fc6"
   param {
-    name: "fc6_w"
     lr_mult: 1
     decay_mult: 1
   }
   param {
-    name: "fc6_b"
     lr_mult: 2
     decay_mult: 0
   }
@@ -270,32 +255,30 @@ layer {
   }
 }
 layer {
-  bottom: "fc6"
-  top: "fc6"
   name: "relu6"
   type: "ReLU"
-}
-layer {
   bottom: "fc6"
   top: "fc6"
+}
+layer {
   name: "drop6"
   type: "Dropout"
+  bottom: "fc6"
+  top: "fc6"
   dropout_param {
     dropout_ratio: 0.5
   }
 }
 layer {
-  bottom: "fc6"
-  top: "fc7"
   name: "fc7"
   type: "InnerProduct"
+  bottom: "fc6"
+  top: "fc7"
   param {
-    name: "fc7_w"
     lr_mult: 1
     decay_mult: 1
   }
   param {
-    name: "fc7_b"
     lr_mult: 2
     decay_mult: 0
   }
@@ -312,81 +295,35 @@ layer {
   }
 }
 layer {
-  bottom: "fc7"
-  top: "fc7"
   name: "relu7"
   type: "ReLU"
-}
-layer {
   bottom: "fc7"
   top: "fc7"
+}
+layer {
   name: "drop7"
   type: "Dropout"
-  dropout_param {
-    dropout_ratio: 0.5
-  }
-}
-layer {
   bottom: "fc7"
-  top: "fc8_s"
-  name: "fc8_s"
-  type: "InnerProduct"
-  param {
-    name: "fc8_s_w"
-    lr_mult: 1000
-    decay_mult: 1
-  }
-  param {
-    name: "fc8_s_b"
-    lr_mult: 2000
-    decay_mult: 0
-  }
-  inner_product_param {
-    num_output: 1000
-    weight_filler {
-      type: "gaussian"
-      std: 0.01
-    }
-    bias_filler {
-      type: "constant"
-      value: 0
-    }
-  }
-}
-#softmax branch
-
-layer {
-  bottom: "fc8_s"
-  top: "fc8_s_r"
-  name: "relu8"
-  type: "ReLU"
-}
-layer {
-  bottom: "fc8_s_r"
-  top: "fc8_s_r"
-  name: "drop8"
-  type: "Dropout"
+  top: "fc7"
   dropout_param {
     dropout_ratio: 0.5
   }
 }
 layer {
-  bottom: "fc8_s_r"
-  top: "fc9_f"
-  name: "fc9_f"
+  name: "fc8"
   type: "InnerProduct"
+  bottom: "fc7"
+  top: "fc8"
   param {
-    name: "fc9_f_w"
-    lr_mult: 1000
+    lr_mult: 1
     decay_mult: 1
   }
   param {
-    name: "fc9_f_b"
-    lr_mult: 2000
+    lr_mult: 2
     decay_mult: 0
   }
   inner_product_param {
-    num_output: 6
+    num_output: 365
     weight_filler {
       type: "gaussian"
       std: 0.01
@@ -397,4 +334,3 @@ layer {
     }
   }
 }
-

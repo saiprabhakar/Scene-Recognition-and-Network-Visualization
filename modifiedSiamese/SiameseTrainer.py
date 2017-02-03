@@ -25,6 +25,7 @@ warnings.filterwarnings("ignore", category=matplotlib.cbook.mplDeprecation)
 import pickle
 from os import listdir
 from os.path import isfile, join
+from ipdb import set_trace as debug
 
 
 class SiameseTrainWrapper(object):
@@ -33,32 +34,25 @@ class SiameseTrainWrapper(object):
     use to unnormalize the learned bounding-box regression weights.
     """
 
-    def __init__(self,
-                 solver_prototxt,
-                 pretrainedSiameseModel=None,
-                 pretrained_model=None,
-                 pretrained_model_proto=None,
-                 testProto=None,
-                 train=1,
-                 testProto1=None,
-                 netSize=1000,
-                 visu=0,
-                 tech=None,
-                 netName=None,
-                 meanfile='',
-                 class_size=6,
-                 class_adju=2):
+    def __init__(self, solver_prototxt, pretrainedSiameseModel,
+                 pretrained_model, pretrained_model_proto, testProto, train,
+                 testProto1, netSize, visu, tech, netName, heat_mask_ratio,
+                 final_layer, meanfile, im_target_size, data_folder,
+                 class_size, class_adju):
         """Initialize the SolverWrapper."""
         caffe.set_device(0)
         caffe.set_mode_gpu()
-        #caffe.set_mode_cpu()
+
+        self.im_target_size = im_target_size  #227  #####
+        self.heat_mask_ratio = heat_mask_ratio  #####
+        self.final_layer = final_layer
         self.train = train
         self.netSize = netSize
         self.netName = netName
         self.class_size = class_size
         self.class_adju = class_adju
-        self.data_folder = 'data/'
-        self.im_target_size = 227
+        self.data_folder = data_folder  #'data/'
+        self.im_target_size = im_target_size
         self.viz_tech = tech
         self.meanarr = h2._load_mean_binaryproto(
             fileName=meanfile, im_target_size=self.im_target_size)
@@ -372,7 +366,7 @@ class SiameseTrainWrapper(object):
         imlist = []
 
         stride = 10
-        highlighted_ratio = 0.25
+        highlighted_ratio = self.heat_mask_ratio
         heat_map_occ_s = {}
         heat_map_raw_occ_s = {}
         heat_map_grad_s = {}
@@ -564,13 +558,8 @@ class SiameseTrainWrapper(object):
             #import IPython
             #IPython.embed()
 
-    def generate_heat_map_softmax(self,
-                                  imageDict,
-                                  imlist,
-                                  im1,
-                                  size_patch,
-                                  stride,
-                                  ratio=0.25):
+    def generate_heat_map_softmax(self, imageDict, imlist, im1, size_patch,
+                                  stride, ratio):
         im = h2._load_image(
             img_name=self.data_folder + imlist[im1],
             im_target_size=self.im_target_size)
@@ -600,7 +589,7 @@ class SiameseTrainWrapper(object):
                     data=blobs['data'].astype(
                         np.float32, copy=True))
 
-                p = self.siameseTestNet.blobs['fc9_f'].data[0].copy()
+                p = self.siameseTestNet.blobs[self.final_layer].data[0].copy()
                 prob1 = h2._get_prob(p, imageDict[imlist[im1]])
                 heat_map += l_occ_map * prob1
 
@@ -636,12 +625,8 @@ class SiameseTrainWrapper(object):
         #cv2.destroyAllWindows()
         return img1.astype(np.uint8), heat_map.astype(np.uint8), heat_map_o
 
-    def generate_heat_map_gradients(self,
-                                    imageDict,
-                                    imlist,
-                                    im1,
-                                    ratio=0.25,
-                                    dilate_iterations=None):
+    def generate_heat_map_gradients(self, imageDict, imlist, im1, ratio,
+                                    dilate_iterations):
         blobs = {'data': None}
         blobs['data'] = h2._get_image_blob(
             img_name=self.data_folder + imlist[im1],
@@ -698,25 +683,14 @@ class SiameseTrainWrapper(object):
         return img1.astype(np.uint8), heat_map.astype(np.uint8), saliency
 
 
-def siameseTrainer(siameseSolver,
-                   fileName_test_visu,
-                   pretrained_model,
-                   pretrainedSiameseModel,
-                   testProto,
-                   pretrained_model_proto,
-                   train=1,
-                   visu=0,
-                   testProto1=None,
-                   viz_tech=None,
-                   visu_all=False,
-                   visu_all_save_dir=None,
-                   visu_all_analyse_dir=None,
-                   compare=0,
-                   net=None,
-                   meanfile='',
-                   netSize=1000):
+def siameseTrainer(siameseSolver, fileName_test_visu, pretrained_model,
+                   pretrainedSiameseModel, testProto, pretrained_model_proto,
+                   train, visu, testProto1, viz_tech, visu_all,
+                   visu_all_save_dir, compare, data_folder, heat_mask_ratio,
+                   final_layer, net, im_target_size, class_size, class_adju,
+                   meanfile, netSize):
     sw = SiameseTrainWrapper(
-        siameseSolver,
+        solver_prototxt=siameseSolver,
         pretrainedSiameseModel=pretrainedSiameseModel,
         pretrained_model=pretrained_model,
         pretrained_model_proto=pretrained_model_proto,
@@ -724,8 +698,14 @@ def siameseTrainer(siameseSolver,
         testProto1=testProto1,
         train=train,
         visu=visu,
+        final_layer=final_layer,
+        heat_mask_ratio=heat_mask_ratio,
         netName=net,
         meanfile=meanfile,
+        im_target_size=im_target_size,
+        data_folder=data_folder,
+        class_size=class_size,
+        class_adju=class_adju,
         tech=viz_tech,
         netSize=netSize)
     if train == 1:

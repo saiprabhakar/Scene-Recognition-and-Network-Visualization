@@ -25,6 +25,8 @@ warnings.filterwarnings("ignore", category=matplotlib.cbook.mplDeprecation)
 import pickle
 from os import listdir
 from os.path import isfile, join
+import ipdb
+from ipdb import set_trace as debug
 
 
 class AnalyseVisualizations(object):
@@ -40,20 +42,33 @@ class AnalyseVisualizations(object):
                  analysis=0,
                  tech=None,
                  meanfile='',
+                 im_target_size=227,
+                 data_folder='data/',
                  class_size=6,
-                 class_adju=2):
+                 heat_mask_ratio=0.25,
+                 class_adju=2,
+                 save_img=0,
+                 save_data=0,
+                 final_layer='',
+                 _run=None):
         """Initialize the SolverWrapper."""
         caffe.set_device(0)
         caffe.set_mode_gpu()
+        self.save_img = save_img
+        self.save_data = save_data
+
+        self.final_layer = final_layer
+        self._run = _run
         self.netSize = netSize
         self.class_size = class_size
-        self.heat_map_ratio = 0.25  #####
+        self.heat_mask_ratio = heat_mask_ratio  #####
         self.class_adju = class_adju
-        self.data_folder = 'data/'  #####
-        self.im_target_size = 227  #####
+        self.data_folder = data_folder  #'data/'  #####
+        self.im_target_size = im_target_size  #227  #####
         self.max_grow_iter = 300
         self.meanarr = h2._load_mean_binaryproto(
             fileName=meanfile, im_target_size=self.im_target_size)
+        self.meanfile = meanfile
 
         print 'anaysis net initializing'
         assert testProto != None
@@ -68,6 +83,7 @@ class AnalyseVisualizations(object):
             datetime.datetime.now())
         f = open(database_fileName)
         lines = [line.rstrip('\n') for line in f]
+        save = 1
 
         # load list of all pickel files
         visu_file_s = [f for f in listdir(visu_all_analyse_dir)
@@ -84,8 +100,14 @@ class AnalyseVisualizations(object):
         combine_tech_s = ["blur", "black"]
         for p in range(len(combine_tech_s)):
             combine_tech = combine_tech_s[p]
+
+            o_rel_inc_fin = np.zeros((len(visu_file_s), len(size_patch_s)))
+            g_rel_inc_fin = np.zeros(
+                (len(visu_file_s), len(dilate_iteration_s)))
             o_rel_inc = np.zeros((len(visu_file_s), len(size_patch_s)))
             g_rel_inc = np.zeros((len(visu_file_s), len(dilate_iteration_s)))
+            mod_prob_s = np.zeros((len(visu_file_s), 1))
+            orig_prob_s = np.zeros((len(visu_file_s), 1))
             less_per = np.zeros((len(visu_file_s), 1))
             o_req_mask_percent = np.zeros(
                 (len(visu_file_s), len(size_patch_s)))
@@ -96,6 +118,19 @@ class AnalyseVisualizations(object):
             g_req_dilate_iter = np.zeros(
                 (len(visu_file_s), len(dilate_iteration_s))) - 2
             images = []
+            class_index_s = []
+            preName_occ_visu_init = []
+            preName_occ_visu_fin = []
+            preName_grad_visu_init = []
+            preName_grad_visu_fin = []
+            preName_occ_init = []
+            preName_occ_fin = []
+            preName_grad_init = []
+            preName_grad_fin = []
+            part_name = '_floor_' + "thres" + str(
+                int(100 * self.heat_mask_ratio)) + '-' + str(
+                    combine_tech) + "-" + tStamp
+
             # for all files
             for i in range(len(visu_file_s)):
                 visu_file = visu_all_analyse_dir + visu_file_s[i]
@@ -109,6 +144,7 @@ class AnalyseVisualizations(object):
 
                 # load image and find prob
                 images.append(im_name)
+                class_index_s.append(class_index)
                 img = h2._load_image(
                     img_name=self.data_folder + im_name,
                     im_target_size=self.im_target_size)
@@ -116,7 +152,6 @@ class AnalyseVisualizations(object):
                     img, self.meanarr, self.im_target_size)
                 orig_prob, all_prob = self.get_prediction_prob(original_blob,
                                                                class_index)
-                #print "original prob", im_name, class_index, orig_prob#, all_prob
 
                 # modify image according to the technique and find prediction
                 if combine_tech == "blur":
@@ -134,69 +169,139 @@ class AnalyseVisualizations(object):
                 else:
                     print "not implemented"
                     assert 1 == 2
-                print combine_tech, orig_prob, class_index, mod_prob, all_prob.argmax(
-                ), class_index == all_prob.argmax()
+                #print combine_tech, orig_prob, class_index, mod_prob, all_prob.argmax(
+                #), class_index == all_prob.argmax()
 
                 # combine modified and original image-- ignore is the difference is
                 # less than 5 percent
                 # TODO is this necessary
+                mod_prob_s[i] = mod_prob
+                orig_prob_s[i] = orig_prob
                 if orig_prob - mod_prob > 0.0:
                     # using occlusion visualization
                     for k in range(len(size_patch_s)):
-                        heat_map_o = h2._get_mask_from_raw_map(
-                            heat_map_raw_occ_s[k], self.heat_map_ratio)
-                        pred_class_index, c_prob, c_all_prob = self.combine_and_predict(
+                        heat_mask_o = h2._get_mask_from_raw_map(
+                            heat_map_raw_occ_s[k], self.heat_mask_ratio)
+                        pred_class_index_init, c_prob_init, c_all_prob_init, c_img_init = self.combine_and_predict(
                             mod_img, heat_mask_o, img, class_index)
                         # find relative increase in network confidence
-                        rel_inc = 100 * (c_prob - mod_prob) / (
+                        rel_inc = 100 * (c_prob_init - mod_prob) / (
                             orig_prob - mod_prob + 0.001)
-                        #print "occ", size_patch_s[k], c_prob, c_all_prob, rel_inc
+                        #print "occ", size_patch_s[k], c_prob_init, c_all_prob_init, rel_inc
                         o_rel_inc[i, k] = rel_inc
                         # put this inside a function too?
-                        #TODO save final modified image and mask,
-                        if pred_class_index == class_index:
+                        #TODO initial and final mask as pickle
+                        if pred_class_index_init == class_index:
                             req_dilate_iter = 0
-                            req_percent = h2._find_percentage_mask(heat_mask_o)
+                            req_percent = -1  #h2._find_percentage_mask(heat_mask_o)
+                            c_prob_fin = -1  #orig_prob
+                            req_heat_mask_o = np.zeros(heat_mask_o.shape)
+                            c_img_fin = np.zeros(c_img_init.shape)
                         else:
-                            req_dilate_iter, req_heat_mask_o = self.grow_till_confident(
+                            req_dilate_iter, req_heat_mask_o, c_img_fin, c_prob_fin, c_all_prob_fin = self.grow_till_confident(
                                 mod_img, heat_mask_o, img, class_index)
                             req_percent = h2._find_percentage_mask(
                                 req_heat_mask_o)
+                        rel_inc = 100 * (c_prob_fin - mod_prob) / (
+                            orig_prob - mod_prob + 0.001)
                         o_req_mask_percent[i, k] = req_percent
                         o_req_dilate_iter[i, k] = req_dilate_iter
+                        o_rel_inc_fin[i, k] = rel_inc
 
-                        #h2.plot_images(img, mod_img, c_img)
+                        #debug()
+                        if self.save_img == 1:
+                            c_img_visu_init_o = h2._visu_heat_map(img.copy(),
+                                                                  heat_mask_o)
+                            c_img_visu_fin_o = h2._visu_heat_map(
+                                img.copy(), req_heat_mask_o)
+                            preName = 'analysis_visu_occ/' + im_name[:-4] + '-itera-' + str(
+                                size_patch_s[k]) + '-M-nSize-' + str(
+                                    self.
+                                    netSize) + "-initial-heat_map" + part_name + ".png"
+                            cv2.imwrite(preName, c_img_visu_init_o)
+                            preName_occ_visu_init.append(preName)
+                            preName = 'analysis_visu_occ/' + im_name[:-4] + '-itera-' + str(
+                                size_patch_s[k]) + '-M-nSize-' + str(
+                                    self.
+                                    netSize) + "-final-heat_map" + part_name + ".png"
+                            cv2.imwrite(preName, c_img_visu_fin_o)
+                            preName_occ_visu_fin.append(preName)
+                            preName = 'analysis_visu_occ/' + im_name[:-4] + '-itera-' + str(
+                                size_patch_s[k]) + '-M-nSize-' + str(
+                                    self.
+                                    netSize) + "-initial" + part_name + ".png"
+                            cv2.imwrite(preName, c_img_init)
+                            preName_occ_init.append(preName)
+                            preName = 'analysis_visu_occ/' + im_name[:-4] + '-itera-' + str(
+                                size_patch_s[k]) + '-M-nSize-' + str(
+                                    self.
+                                    netSize) + "-final" + part_name + ".png"
+                            cv2.imwrite(preName, c_img_fin)
+                            preName_occ_fin.append(preName)
 
                     # using gradient visualization
                     for k in range(len(dilate_iteration_s)):
-                        heat_map_g = h2._get_mask_from_raw_map(
-                            heat_map_raw_grad_s[k], self.heat_map_ratio)
-                        pred_class_index, c_prob, c_all_prob = self.combine_and_predict(
+                        heat_mask_g = h2._get_mask_from_raw_map(
+                            heat_map_raw_grad_s[k], self.heat_mask_ratio)
+                        pred_class_index_init, c_prob_init, c_all_prob_init, c_img_init = self.combine_and_predict(
                             mod_img, heat_mask_g, img, class_index)
 
-                        rel_inc = 100 * (c_prob - mod_prob) / (
+                        rel_inc = 100 * (c_prob_init - mod_prob) / (
                             orig_prob - mod_prob + 0.001)
-                        #print "grad", dilate_iteration_s[k], c_prob, c_all_prob, rel_inc
+                        #print "grad", dilate_iteration_s[k], c_prob_init, c_all_prob_init, rel_inc
                         g_rel_inc[i, k] = rel_inc
                         # put this inside a function too?
-                        if pred_class_index == class_index:
+                        if pred_class_index_init == class_index:
                             req_dilate_iter = 0
-                            req_percent = h2._find_percentage_mask(heat_mask_g)
+                            req_percent = -1  #h2._find_percentage_mask(heat_mask_g)
+                            c_prob_fin = -1  #orig_prob
+                            c_img_fin = np.zeros(c_img_init.shape)
+                            req_heat_mask_g = np.zeros(heat_mask_g.shape)
                         else:
-                            req_dilate_iter, req_heat_mask_g = self.grow_till_confident(
+                            req_dilate_iter, req_heat_mask_g, c_img_fin, c_prob_fin, c_all_prob_fin = self.grow_till_confident(
                                 mod_img, heat_mask_g, img, class_index)
                             req_percent = h2._find_percentage_mask(
                                 req_heat_mask_g)
+                        rel_inc = 100 * (c_prob_fin - mod_prob) / (
+                            orig_prob - mod_prob + 0.001)
                         g_req_mask_percent[i, k] = req_percent
                         g_req_dilate_iter[i, k] = req_dilate_iter
+                        g_rel_inc_fin[i, k] = rel_inc
+                        #TODO coustomize the save folder
+                        if self.save_img == 1:
+                            c_img_visu_init_g = h2._visu_heat_map(img.copy(),
+                                                                  heat_mask_g)
+                            c_img_visu_fin_g = h2._visu_heat_map(
+                                img.copy(), req_heat_mask_g)
+                            preName = 'analysis_visu_grad/' + im_name[:-4] + '-itera-' + str(
+                                dilate_iteration_s[k]) + '-M-nSize-' + str(
+                                    self.
+                                    netSize) + "-initial-heat_map" + part_name + ".png"
+                            cv2.imwrite(preName, c_img_visu_init_g)
+                            preName_grad_visu_init.append(preName)
+                            preName = 'analysis_visu_grad/' + im_name[:-4] + '-itera-' + str(
+                                dilate_iteration_s[k]) + '-M-nSize-' + str(
+                                    self.
+                                    netSize) + "-final-heat_map" + part_name + ".png"
+                            cv2.imwrite(preName, c_img_visu_fin_g)
+                            preName_grad_visu_fin.append(preName)
+                            preName = 'analysis_visu_grad/' + im_name[:-4] + '-itera-' + str(
+                                dilate_iteration_s[k]) + '-M-nSize-' + str(
+                                    self.
+                                    netSize) + "-initial" + part_name + ".png"
+                            cv2.imwrite(preName, c_img_init)
+                            preName_grad_init.append(preName)
+                            preName = 'analysis_visu_grad/' + im_name[:-4] + '-itera-' + str(
+                                dilate_iteration_s[k]) + '-M-nSize-' + str(
+                                    self.
+                                    netSize) + "-final" + part_name + ".png"
+                            cv2.imwrite(preName, c_img_fin)
+                            preName_grad_fin.append(preName)
                 else:
                     less_per[i] = 1
 
             # ignore the if using visualization decreased the
             # network confidence
-            #print o_rel_inc.astype(int)
-            #print g_rel_inc.astype(int)
-            #print less_per
             o_rel_inc[o_rel_inc < 0] = 0
             g_rel_inc[g_rel_inc < 0] = 0
             o_fre = np.zeros(o_rel_inc.shape)
@@ -205,15 +310,65 @@ class AnalyseVisualizations(object):
             g_fre[g_rel_inc > 0] = 1
             o_rel_inc_avg = o_rel_inc.sum(axis=0) / o_fre.sum(axis=0)
             g_rel_inc_avg = g_rel_inc.sum(axis=0) / g_fre.sum(axis=0)
+            best_patch_size_init = size_patch_s[o_rel_inc_avg.argmax()]
+            best_dilate_iter_init = dilate_iteration_s[g_rel_inc_avg.argmax()]
 
             # finding best performing configs
             print combine_tech
-            print "occ sum", o_rel_inc_avg, "best perfomance", size_patch_s[
-                o_rel_inc_avg.argmax()]
-            print "grd_sum", g_rel_inc_avg, "best perfomance", dilate_iteration_s[
-                g_rel_inc_avg.argmax()]
-            import IPython
-            IPython.embed()
+            print "occ sum", o_rel_inc_avg, "best perfomance", best_patch_size_init
+            print "grd_sum", g_rel_inc_avg, "best perfomance", best_dilate_iter_init
+
+            data = {
+                'tStamp': tStamp,
+                'o_rel_inc': o_rel_inc,
+                'o_rel_inc_fin': o_rel_inc_fin,
+                'o_req_mask_percent': o_req_mask_percent,
+                'o_req_dilate_iter': o_req_dilate_iter,
+                'o_req_mask_percent': o_req_mask_percent,
+                'o_req_dilate_iter': o_req_dilate_iter,
+                'o_rel_inc_fin': o_rel_inc_fin,
+                'preName_occ_init': preName_occ_init,
+                'preName_occ_fin': preName_occ_fin,
+                'preName_occ_visu_init': preName_occ_visu_init,
+                'preName_occ_visu_fin': preName_occ_visu_fin,
+                'g_rel_inc': g_rel_inc,
+                'g_rel_inc_fin': g_rel_inc_fin,
+                'g_req_mask_percent': g_req_mask_percent,
+                'g_req_dilate_iter': g_req_dilate_iter,
+                'g_req_mask_percent': g_req_mask_percent,
+                'g_req_dilate_iter': g_req_dilate_iter,
+                'g_rel_inc_fin': g_rel_inc_fin,
+                'preName_grad_init': preName_grad_init,
+                'preName_grad_fin': preName_grad_fin,
+                'preName_grad_visu_init': preName_grad_visu_init,
+                'preName_grad_visu_fin': preName_grad_visu_fin,
+                'images': images,
+                'class_index_s': class_index_s,
+                'heat_mask_ratio': self.heat_mask_ratio,
+                'combine_tech': combine_tech,
+                'best_patch_size_init': best_patch_size_init,
+                'best_dilate_iter_init': best_dilate_iter_init
+            }
+
+            image_list = [
+                preName_grad_init,
+                preName_grad_fin,
+                preName_grad_visu_init,
+                preName_grad_visu_fin,
+            ]
+            #for i in image_list:
+            #    for j in i:
+            #        self.run.add_artifact(j)
+
+            #self.run.info[combine_tech] = data
+            if self.save_data == 1:
+                with open('analysis_results/analysis_results_' + part_name +
+                          '.pickle', 'w') as f:
+                    pickle.dump([data], f)
+
+        #import IPython
+        #IPython.embed()
+        print tStamp
 
     def combine_and_predict(self, mod_img, heat_mask_o, img, class_index):
         c_img = h2._combine_images(mod_img, heat_mask_o, img)
@@ -221,7 +376,7 @@ class AnalyseVisualizations(object):
                                                self.im_target_size)
         c_prob, c_all_prob = self.get_prediction_prob(c_blob, class_index)
         pred_class_index = c_all_prob.argmax()
-        return pred_class_index, c_prob, c_all_prob
+        return pred_class_index, c_prob, c_all_prob, c_img
 
     def grow_till_confident(self, m_img, ori_mask, img_o, class_index):
         kernel = np.ones((3, 3), np.uint8)
@@ -230,7 +385,7 @@ class AnalyseVisualizations(object):
         while (1):
             _iter += 1
             mask_now = cv2.dilate(mask_now, kernel, iterations=1)
-            pred_class_index, c_prob, c_all_prob = self.combine_and_predict(
+            pred_class_index, c_prob, c_all_prob, c_img = self.combine_and_predict(
                 m_img, mask_now, img_o, class_index)
             if pred_class_index == class_index:
                 req_iter = _iter
@@ -238,7 +393,7 @@ class AnalyseVisualizations(object):
             if _iter > self.max_grow_iter:
                 req_iter = -1
                 break
-        return req_iter, mask_now
+        return req_iter, mask_now, c_img, c_prob, c_all_prob
 
     def get_prediction_prob(self, image_blob, class_index_n):
         # finds the network confidence
@@ -252,21 +407,37 @@ class AnalyseVisualizations(object):
 
 
 def analyseNet(pretrainedSiameseModel,
-               testProto,
-               fileName_test_visu,
-               viz_tech=None,
-               analyse_all_visualizations=0,
-               visu_all_analyse_dir=None,
-               meanfile='',
-               netSize=1000):
+                testProto,
+                fileName_test_visu,
+                viz_tech=None,
+                analyse_all_visualizations=0,
+                visu_all_analyse_dir=None,
+                meanfile='',
+                heat_mask_ratio=0.25,#heat_mask_ratio,#
+                data_folder='',#data_folder,#
+                im_target_size=0,#im_target_size,#
+                class_size=0,#class_size,#
+                class_adju=0,#class_adju,#
+                netSize=1000,
+                final_layer='',#final_layer,
+                save_img=0, save_data=0,
+                _run=None):
 
     sw = AnalyseVisualizations(
-        pretrainedSiameseModel=pretrainedSiameseModel,
-        testProto=testProto,
+        pretrainedSiameseModel=pretrainedSiameseModel,#
+        testProto=testProto,#
         analysis=analyse_all_visualizations,
         tech=viz_tech,
-        meanfile=meanfile,
-        netSize=netSize)
+        heat_mask_ratio=heat_mask_ratio,#
+        data_folder=data_folder,#
+        im_target_size=im_target_size,#
+        meanfile=meanfile,#
+        class_size=class_size,#
+        class_adju=class_adju,#
+        final_layer=final_layer,
+        netSize=netSize,
+        save_img=save_img,save_data=save_data,
+        _run=_run)
 
     if analyse_all_visualizations == 1:
         print 'analysing all visualization'

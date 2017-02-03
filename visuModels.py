@@ -7,31 +7,27 @@
 from modifiedSiamese.SiameseTrainer import *
 from modifiedSiamese.analyse_vis import *
 
-###change the fc8 layer size here
-###make sure you have created the appropriate prototxt files first
-
 #to visualize toggle train and visu
 #to test toggle only train
 #to save all the possible masks of visualization use visu_all_pos and visu
-v = 0
+v = 1
+#net = "floor"
+net = "places"
+tech = 'both'
 
 if v == 1:
     visu = 1
     visu_all_pos = True  #False
     analyse_all_visualizations = 0
+    heat_mask_ratio = 0.25
 else:
     visu = 0
     visu_all_pos = False
     analyse_all_visualizations = 1
+    heat_mask_ratio = 0.25
 
-net = "floor"
-#specify the technique used to visualize the network
-#tech = 'grad'
-tech = 'both'
-#tech = 'grad'
-
-netSize = 1000
 if net == "floor":
+    netSize = 1000
     test_prototxt0 = 'modifiedSiameseModels/extracted_siamesePlaces_' + str(
         netSize) + '_test.prototxt'
     test_prototxt1 = 'modifiedSiameseModels/grad_visu_extracted_siamesePlaces_' + str(
@@ -39,11 +35,28 @@ if net == "floor":
     meanfile = 'placesOriginalModel/places205CNN_mean.binaryproto'
     trainedModel = 'modifiedNetResults/Modified-netsize-1000-epoch-18-tstamp--Timestamp-2017-01-22-20:02:03-net.caffemodel'
     fileName_test_visu = 'data/imagelist_all.txt'
+    class_size = 6
+    class_adju = 2
+    data_folder = 'data/'
+    im_target_size = 227
+    save_data = 0
+    save_img = 0
+    final_layer = 'fc9_f'  #final_layer
+
 elif net == "places":
-    test_prototxt0 = None
-    test_prototxt1 = None
-    meanfile = ''
-    trainedModel = None
+    netSize = 1000
+    test_prototxt0 = 'placesOriginalModel/deploy_alexnet_places365.prototxt'
+    test_prototxt1 = 'placesOriginalModel/grad_visu_deploy_alexnet_places365.prototxt'
+    meanfile = 'placesOriginalModel/places365CNN_mean.binaryproto'
+    trainedModel = 'placesOriginalModel/alexnet_places365.caffemodel'  #None
+    fileName_test_visu = 'data_places/images_all.txt'
+    class_size = 365
+    class_adju = 0
+    data_folder = 'data_places/val_256/'
+    im_target_size = 227
+    save_data = 1
+    save_img = 0
+    final_layer = 'fc8'  #final_layer
 
 #####################################################
 
@@ -54,7 +67,7 @@ train = 0
 
 # mkdir <net>_NetResults_visu_grad/occ
 visu_all_save_dir = net + '_NetResults_visu/'
-visu_all_analyse_dir = net + '_NetResults_visu/'
+visu_all_analyse_dir = net + '_NetResults_visu_back/'
 
 testProto1 = None
 compare = 1
@@ -69,6 +82,7 @@ elif analyse_all_visualizations == 1:
     # loading test prototype for analysis
     pretrainedSiameseModel = trainedModel
     testProto = test_prototxt0
+_run = []
 
 if analyse_all_visualizations == 1:
     analyseNet(
@@ -79,7 +93,16 @@ if analyse_all_visualizations == 1:
         fileName_test_visu=fileName_test_visu,
         viz_tech=tech,
         meanfile=meanfile,
-        netSize=netSize)
+        netSize=netSize,
+        class_size=class_size,
+        class_adju=class_adju,
+        heat_mask_ratio=heat_mask_ratio,
+        im_target_size=im_target_size,
+        final_layer=final_layer,
+        save_img=save_img,
+        save_data=save_data,
+        data_folder=data_folder,
+        _run=_run)
 else:
     siameseTrainer(
         siameseSolver=siameseSolver,
@@ -90,12 +113,17 @@ else:
         testProto=testProto,
         testProto1=testProto1,
         compare=compare,
+        im_target_size=im_target_size,
         train=train,
         visu=visu,
         visu_all=visu_all_pos,
+        heat_mask_ratio=heat_mask_ratio,
         visu_all_save_dir=visu_all_save_dir,
-        visu_all_analyse_dir=visu_all_analyse_dir,
         viz_tech=tech,
         meanfile=meanfile,
         net=net,
+        final_layer=final_layer,
+        data_folder=data_folder,
+        class_size=class_size,
+        class_adju=class_adju,
         netSize=netSize)

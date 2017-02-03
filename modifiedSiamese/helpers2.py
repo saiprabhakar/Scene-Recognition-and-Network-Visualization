@@ -11,6 +11,7 @@ from pythonlayers.helpers import *
 import matplotlib.pyplot as plt
 import warnings
 import matplotlib.cbook
+from ipdb import set_trace as debug
 warnings.filterwarnings("ignore", category=matplotlib.cbook.mplDeprecation)
 
 
@@ -19,6 +20,16 @@ def _get_prob(p, class_index_n):
     p = p / p.sum()
     prob1 = p[class_index_n]
     return prob1
+
+
+def _visu_heat_map(img1, heat_map):
+    temp = np.sum(img1, axis=2) / 3.0
+    img1[:, :, 2] = temp
+    img1[:, :, 1] = temp
+    img1[:, :, 0] = temp
+    img1[:, :, 2] += heat_map * 100
+    #TODO correct range
+    return img1
 
 
 def plot_images(img1, img2, img3):
@@ -88,7 +99,7 @@ def _find_threshold(h_map, ratio):
     assert ratio <= 1.0
     temp = np.sort(
         h_map.reshape(h_map.shape[0] * h_map.shape[1]), kind='mergesort')
-    return temp[int((1 - ratio) * len(temp))]
+    return temp[int(min(1 - ratio, 0.9) * len(temp))]
 
 
 def _round_image(img):
