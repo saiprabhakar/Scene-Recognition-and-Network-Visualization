@@ -11,9 +11,11 @@ from modifiedSiamese.analyse_vis import *
 #to test toggle only train
 #to save all the possible masks of visualization use visu_all_pos and visu
 v = 0
-#net = "floor"
-net = "places"
+net = "floor"
+#net = "places"
 tech = 'both'
+save_data = 1
+save_img = 1
 
 if v == 1:
     visu = 1
@@ -39,8 +41,6 @@ if net == "floor":
     class_adju = 2
     data_folder = 'data/'
     im_target_size = 227
-    save_data = 0
-    save_img = 0
     final_layer = 'fc9_f'  #final_layer
 
 elif net == "places":
@@ -54,8 +54,6 @@ elif net == "places":
     class_adju = 0
     data_folder = 'data_places/val_256/'
     im_target_size = 227
-    save_data = 1
-    save_img = 1
     final_layer = 'fc8'  #final_layer
 
 #####################################################

@@ -95,6 +95,16 @@ def _get_mask_from_raw_map(raw_map, ratio):
     return heat_map
 
 
+def _get_combined_heat_mask(raw_map1, raw_map2, mask_ratio, tech):
+    hm1 = _get_mask_from_raw_map(raw_map1, mask_ratio)
+    hm2 = _get_mask_from_raw_map(raw_map2, mask_ratio)
+    if tech == 'inter':
+        hm = (hm1.astype(bool) & hm2.astype(bool)).astype(float)
+    elif tech == 'neg':
+        hm = (hm1.astype(bool) & ~hm2.astype(bool)).astype(float)
+    return hm
+
+
 def _find_threshold(h_map, ratio):
     assert ratio <= 1.0
     temp = np.sort(
