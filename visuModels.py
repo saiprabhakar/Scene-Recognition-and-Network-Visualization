@@ -10,7 +10,7 @@ from modifiedSiamese.analyse_vis import *
 #to visualize toggle train and visu
 #to test toggle only train
 #to save all the possible masks of visualization use visu_all_pos and visu
-v = 1
+v = 0
 #net = "floor"
 net = "places"
 tech = 'both'
@@ -55,7 +55,7 @@ elif net == "places":
     data_folder = 'data_places/val_256/'
     im_target_size = 227
     save_data = 1
-    save_img = 0
+    save_img = 1
     final_layer = 'fc8'  #final_layer
 
 #####################################################
@@ -99,10 +99,10 @@ if analyse_all_visualizations == 1:
         heat_mask_ratio=heat_mask_ratio,
         im_target_size=im_target_size,
         final_layer=final_layer,
+        net=net,
         save_img=save_img,
         save_data=save_data,
-        data_folder=data_folder,
-        _run=_run)
+        data_folder=data_folder)
 else:
     siameseTrainer(
         siameseSolver=siameseSolver,
