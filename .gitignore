@@ -7,6 +7,7 @@ utils2/*
 pythonCaffeLayers1/*
 papers/*
 savedModels/*
+todelete/*
 
 *.caffemodel
 *.binaryproto

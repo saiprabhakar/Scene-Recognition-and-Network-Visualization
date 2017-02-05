@@ -25,7 +25,6 @@ warnings.filterwarnings("ignore", category=matplotlib.cbook.mplDeprecation)
 import pickle
 from os import listdir
 from os.path import isfile, join
-import ipdb
 from ipdb import set_trace as debug
 
 
@@ -69,6 +68,7 @@ class AnalyseVisualizations(object):
         """
         tStamp = '-Timestamp-{:%Y-%m-%d-%H:%M:%S}'.format(
             datetime.datetime.now())
+        tStamp = ''
         f = open(database_fileName)
         lines = [line.rstrip('\n') for line in f]
         save = 1
@@ -175,7 +175,7 @@ class AnalyseVisualizations(object):
                 preName_neg_og_fin = []
 
             # for all files
-            for i in range(5):  #len(visu_file_s)):
+            for i in range(len(visu_file_s)):
                 visu_file = visu_all_analyse_dir + visu_file_s[i]
                 # load files
                 with open(visu_file) as f:
@@ -251,6 +251,7 @@ class AnalyseVisualizations(object):
                     o_req_mask_percent[i, :] = req_percent
                     o_req_dilate_iter[i, :] = req_dilate_iter
 
+                    #debug()
                     # using gradient visualization
                     preName1, preName2, preName3, preName4, rel_inc_1, rel_inc_2, req_percent, req_dilate_iter, heat_mask = self.find_mask_confidence_analysis(
                         config=dilate_iteration_s,
@@ -372,34 +373,35 @@ class AnalyseVisualizations(object):
 
             # ignore the if using visualization decreased the
             # network confidence
-            o_rel_inc[o_rel_inc < 0] = 0
-            g_rel_inc[g_rel_inc < 0] = 0
-            o_fre = np.zeros(o_rel_inc.shape)
-            o_fre[o_rel_inc > 0] = 1
-            g_fre = np.zeros(g_rel_inc.shape)
-            g_fre[g_rel_inc > 0] = 1
-            o_rel_inc_avg = o_rel_inc.sum(axis=0) / o_fre.sum(axis=0)
-            g_rel_inc_avg = g_rel_inc.sum(axis=0) / g_fre.sum(axis=0)
-            best_patch_size_init = size_patch_s[o_rel_inc_avg.argmax()]
-            best_dilate_iter_init = dilate_iteration_s[g_rel_inc_avg.argmax()]
+            #o_rel_inc1 = o_rel_inc
+            #o_rel_inc1[o_rel_inc1 < 0] = 0
+            #g_rel_inc1[g_rel_inc1 < 0] = 0
+            #o_fre = np.zeros(o_rel_inc.shape)
+            #o_fre[o_rel_inc > 0] = 1
+            #g_fre = np.zeros(g_rel_inc.shape)
+            #g_fre[g_rel_inc > 0] = 1
+            #o_rel_inc_avg = o_rel_inc.sum(axis=0) / o_fre.sum(axis=0)
+            #g_rel_inc_avg = g_rel_inc.sum(axis=0) / g_fre.sum(axis=0)
+            #best_patch_size_init = size_patch_s[o_rel_inc_avg.argmax()]
+            #best_dilate_iter_init = dilate_iteration_s[g_rel_inc_avg.argmax()]
 
-            # finding best performing configs
+            ## finding best performing configs
             print combine_tech
-            print "occ sum", o_rel_inc_avg, "best perfomance", best_patch_size_init
-            print "grd_sum", g_rel_inc_avg, "best perfomance", best_dilate_iter_init
+            #print "occ sum", o_rel_inc_avg, "best perfomance", best_patch_size_init
+            #print "grd_sum", g_rel_inc_avg, "best perfomance", best_dilate_iter_init
 
             data = {
                 'tStamp': tStamp,
                 'images': images,
+                'mod_prob_s': mod_prob_s,
+                'orig_prob_s': orig_prob_s,
                 'class_index_s': class_index_s,
                 'heat_mask_ratio': self.heat_mask_ratio,
                 'combine_tech': combine_tech,
-                'best_patch_size_init': best_patch_size_init,
-                'best_dilate_iter_init': best_dilate_iter_init,
-                'o_rel_inc': o_rel_inc,
-                'o_rel_inc_fin': o_rel_inc_fin,
-                'o_req_mask_percent': o_req_mask_percent,
-                'o_req_dilate_iter': o_req_dilate_iter,
+                'o_rel_inc': o_rel_inc,  ##
+                'o_rel_inc_fin': o_rel_inc_fin,  ##
+                'o_req_mask_percent': o_req_mask_percent,  ##
+                'o_req_dilate_iter': o_req_dilate_iter,  ##
                 'preName_occ_init': preName_occ_init,
                 'preName_occ_fin': preName_occ_fin,
                 'preName_occ_visu_init': preName_occ_visu_init,
@@ -447,8 +449,13 @@ class AnalyseVisualizations(object):
             #        self.run.add_artifact(j)
 
             #self.run.info[combine_tech] = data
+
+            directory = 'analysis/analysis_results_' + self.net
+            if not os.path.exists(directory):
+                os.makedirs(directory)
+
             if self.save_data == 1:
-                with open('analysis_results/analysis_results_' + part_name +
+                with open(directory + '/analysis_results_' + part_name +
                           '.pickle', 'w') as f:
                     pickle.dump([data], f)
 
@@ -532,7 +539,7 @@ class AnalyseVisualizations(object):
                                    '_' + tech2 + str(config2[conf2_id]) + '--')
                 elif tech_name[4:-1] == 'neg':
                     #find negation
-                    if tech_name[-1] == 1:
+                    if tech_name[-1] == '1':
                         # negate 1 with 2
                         heat_mask_o = h2._get_combined_heat_mask(
                             raw_map[conf1_id], raw_map2[conf2_id], mask_ratio,
@@ -583,7 +590,7 @@ class AnalyseVisualizations(object):
                 c_img_visu_init_o = h2._visu_heat_map(img.copy(), heat_mask_o)
                 c_img_visu_fin_o = h2._visu_heat_map(img.copy(),
                                                      req_heat_mask_o)
-                directory = 'analysis_visu_' + tech_name
+                directory = 'analysis/analysis_visu_' + self.net + '_' + tech_name
                 if not os.path.exists(directory):
                     os.makedirs(directory)
                 preName1.append(directory + '/' + im_name[:-4] + '-itera-' +
@@ -591,20 +598,20 @@ class AnalyseVisualizations(object):
                                     self.netSize) + "-initial-heat_map" +
                                 part_name + ".png")
                 cv2.imwrite(preName1[-1], c_img_visu_init_o)
-                preName2.append('analysis_visu_' + tech_name + '/' +
-                                im_name[:-4] + '-itera-' + str(config1[
-                                    k]) + '-M-nSize-' + str(self.netSize) +
-                                "-final-heat_map" + part_name + ".png")
+                preName2.append(directory + '/' + im_name[:-4] + '-itera-' +
+                                str(config1[k]) + '-M-nSize-' + str(
+                                    self.netSize) + "-final-heat_map" +
+                                part_name + ".png")
                 cv2.imwrite(preName2[-1], c_img_visu_fin_o)
-                preName3.append('analysis_visu_' + tech_name + '/' +
-                                im_name[:-4] + '-itera-' + str(config1[
-                                    k]) + '-M-nSize-' + str(self.netSize) +
-                                "-initial" + part_name + ".png")
+                preName3.append(
+                    directory + '/' + im_name[:-4] + '-itera-' + str(config1[
+                        k]) + '-M-nSize-' + str(
+                            self.netSize) + "-initial" + part_name + ".png")
                 cv2.imwrite(preName3[-1], c_img_init)
-                preName4.append('analysis_visu_' + tech_name + '/' +
-                                im_name[:-4] + '-itera-' + str(config1[
-                                    k]) + '-M-nSize-' + str(self.netSize) +
-                                "-final" + part_name + ".png")
+                preName4.append(
+                    directory + '/' + im_name[:-4] + '-itera-' + str(config1[
+                        k]) + '-M-nSize-' + str(
+                            self.netSize) + "-final" + part_name + ".png")
                 cv2.imwrite(preName4[-1], c_img_fin)
         return preName1, preName2, preName3, preName4, rel_inc_1, rel_inc_2, req_percent, req_dilate_iter, heat_mask_o_s
 

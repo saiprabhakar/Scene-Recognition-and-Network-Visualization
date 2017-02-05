@@ -354,7 +354,8 @@ class SiameseTrainWrapper(object):
         import IPython
         IPython.embed()
 
-    def visualize_all(self, fileName, tech, compare, visu_all_save_dir):
+    def visualize_all(self, fileName, tech, compare, visu_all_save_dir, save,
+                      save_img):
         ''' Visualizing all and saving
         '''
         #tStamp = '-Timestamp-{:%Y-%m-%d-%H:%M:%S}'.format(
@@ -373,7 +374,7 @@ class SiameseTrainWrapper(object):
         heat_map_raw_grad_s = {}
 
         size_patch_s = [10, 50, 100]
-        dilate_iteration_s = [0, 2]
+        dilate_iteration_s = [0, 2, 5]
         tech_s = ['occ', 'grad']
 
         for i in lines:
@@ -386,7 +387,6 @@ class SiameseTrainWrapper(object):
 
         for i in range(len(imlist)):
             im1 = i
-            save = 1
             print 'generating visu-', imageDict[imlist[im1]], imlist[
                 im1], 'using occ patch', size_patch_s, ' grad with dilate iter', dilate_iteration_s
 
@@ -404,11 +404,12 @@ class SiameseTrainWrapper(object):
                         ratio=highlighted_ratio)
                     heat_map_occ_s[i] = heat_map_occ
                     heat_map_raw_occ_s[i] = heat_map_raw_occ
-                    preName = self.netName + '_NetResults_visu_occ/' + imlist[
+                    preName = visu_all_save_dir + '_occ/' + imlist[
                         im1][:-4] + '-' + str(size_patch) + '-' + str(
                             stride) + '-' + '-M-nSize-' + str(
                                 self.netSize) + '-tstamp-' + tStamp
-                    cv2.imwrite(preName + '.png', im_gen_occ)
+                    if save_img == 1:
+                        cv2.imwrite(preName + '.png', im_gen_occ)
             else:
                 heat_map_occ_s[i] = heat_map_raw_occ_s[i] = None
 
@@ -426,15 +427,16 @@ class SiameseTrainWrapper(object):
                         dilate_iterations=dilate_iteration)
                     heat_map_grad_s[i] = heat_map_grad
                     heat_map_raw_grad_s[i] = heat_map_raw_grad
-                    preName = self.netName + '_NetResults_visu_grad/' + imlist[
+                    preName = visu_all_save_dir + '_grad/' + imlist[
                         im1][:-4] + '-itera-' + str(
                             dilate_iteration) + '-M-nSize-' + str(
                                 self.netSize) + '-tstamp-' + tStamp
-                    cv2.imwrite(preName + '.png', im_gen_grad)
+                    if save_img == 1:
+                        cv2.imwrite(preName + '.png', im_gen_grad)
             else:
                 heat_map_grad_s[i] = heat_map_raw_grad_s[i] = None
 
-            preName = visu_all_save_dir + imlist[
+            preName = visu_all_save_dir + '/' + imlist[
                 im1][:-4] + '--M-nSize-' + str(
                     self.netSize) + '-tstamp-' + tStamp + '--visualizations'
 
@@ -656,10 +658,10 @@ class SiameseTrainWrapper(object):
         kernel = np.ones((3, 3), np.uint8)
         #iterations = 5
         if dilate_iterations > 0:
-            heat_map = cv2.dilate(
+            heat_map_raw = cv2.dilate(
                 heat_map_raw, kernel, iterations=dilate_iterations)
-        else:
-            heat_map = heat_map_raw.copy()
+        #else:
+        heat_map = heat_map_raw.copy()
 
         threshold = h2._find_threshold(heat_map, ratio=ratio)
         heat_map[heat_map < threshold] = 0
@@ -680,7 +682,7 @@ class SiameseTrainWrapper(object):
         #plt.figure()
         #plt.imshow(img1.astype(np.uint8))
         #plt.show()
-        return img1.astype(np.uint8), heat_map.astype(np.uint8), saliency
+        return img1.astype(np.uint8), heat_map.astype(np.uint8), heat_map_raw
 
 
 def siameseTrainer(siameseSolver, fileName_test_visu, pretrained_model,
@@ -688,7 +690,7 @@ def siameseTrainer(siameseSolver, fileName_test_visu, pretrained_model,
                    train, visu, testProto1, viz_tech, visu_all,
                    visu_all_save_dir, compare, data_folder, heat_mask_ratio,
                    final_layer, net, im_target_size, class_size, class_adju,
-                   meanfile, netSize):
+                   meanfile, netSize, save, save_img):
     sw = SiameseTrainWrapper(
         solver_prototxt=siameseSolver,
         pretrainedSiameseModel=pretrainedSiameseModel,
@@ -721,7 +723,9 @@ def siameseTrainer(siameseSolver, fileName_test_visu, pretrained_model,
                 fileName_test_visu,
                 tech=viz_tech,
                 compare=compare,
-                visu_all_save_dir=visu_all_save_dir)
+                visu_all_save_dir=visu_all_save_dir,
+                save=save,
+                save_img=save_img)
     elif visu == 0:
         print 'testing not implemented'
         #print "testing with ", pretrainedSiameseModel

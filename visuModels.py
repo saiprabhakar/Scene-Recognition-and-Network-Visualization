@@ -10,23 +10,23 @@ from modifiedSiamese.analyse_vis import *
 #to visualize toggle train and visu
 #to test toggle only train
 #to save all the possible masks of visualization use visu_all_pos and visu
-v = 0
-net = "floor"
-#net = "places"
+v = 1
+#net = "floor"
+net = "places"
 tech = 'both'
 save_data = 1
-save_img = 1
+save_img = 0
 
 if v == 1:
     visu = 1
     visu_all_pos = True  #False
     analyse_all_visualizations = 0
-    heat_mask_ratio = 0.25
 else:
     visu = 0
     visu_all_pos = False
     analyse_all_visualizations = 1
-    heat_mask_ratio = 0.25
+
+heat_mask_ratio = 0.5
 
 if net == "floor":
     netSize = 1000
@@ -36,12 +36,13 @@ if net == "floor":
         netSize) + '_test.prototxt'
     meanfile = 'placesOriginalModel/places205CNN_mean.binaryproto'
     trainedModel = 'modifiedNetResults/Modified-netsize-1000-epoch-18-tstamp--Timestamp-2017-01-22-20:02:03-net.caffemodel'
-    fileName_test_visu = 'data/imagelist_all.txt'
+    fileName_test_visu = 'data/data_floor/imagelist_all.txt'
     class_size = 6
     class_adju = 2
-    data_folder = 'data/'
+    data_folder = 'data/data_floor/'
     im_target_size = 227
     final_layer = 'fc9_f'  #final_layer
+    data_index = ''
 
 elif net == "places":
     netSize = 1000
@@ -49,13 +50,14 @@ elif net == "places":
     test_prototxt1 = 'placesOriginalModel/grad_visu_deploy_alexnet_places365.prototxt'
     meanfile = 'placesOriginalModel/places365CNN_mean.binaryproto'
     trainedModel = 'placesOriginalModel/alexnet_places365.caffemodel'  #None
-    fileName_test_visu = 'data_places/images_all.txt'
+    data_index = '1'
+    fileName_test_visu = 'data/data_places/images_all' + data_index + '.txt'
     class_size = 365
     class_adju = 0
-    data_folder = 'data_places/val_256/'
+    data_folder = 'data/data_places/val_256/'
     im_target_size = 227
     final_layer = 'fc8'  #final_layer
-
+print heat_mask_ratio
 #####################################################
 
 pretrained_model_proto = None  #'placesOriginalModel/places_processed.prototxt'
@@ -64,8 +66,9 @@ siameseSolver = None  #'modifiedSiameseModels/siamesePlaces_' + str(netSize) + '
 train = 0
 
 # mkdir <net>_NetResults_visu_grad/occ
-visu_all_save_dir = net + '_NetResults_visu/'
-visu_all_analyse_dir = net + '_NetResults_visu_back/'
+visu_all_save_dir = "visu/" + net + '_NetResults_visu' + data_index
+visu_all_analyse_dir = 'visu/' + net + '_NetResults_visu' + data_index + '/'
+#visu_all_analyse_dir = 'visu/' + net + '_NetResults_visu_back/'
 
 testProto1 = None
 compare = 1
@@ -124,4 +127,6 @@ else:
         data_folder=data_folder,
         class_size=class_size,
         class_adju=class_adju,
+        save=save_data,
+        save_img=save_img,
         netSize=netSize)
