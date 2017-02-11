@@ -33,6 +33,9 @@ visu_file_s = [
     if (isfile(join(analyse_dir, f)) and splitext(f)[1] == '.pickle')
 ]
 
+occ_config = [10, 50, 100]
+grad_config = [0, 2, 5]
+
 for i in range(len(visu_file_s)):
     visu_file = analyse_dir + visu_file_s[i]
     with open(visu_file) as f:
@@ -47,56 +50,76 @@ for i in range(len(visu_file_s)):
     gd_imgs = np.zeros(diff.shape)
     gd_imgs[diff > 0] = 1
 
-    print visu_file, '-------- 00000000000000000000000000'
+    print visu_file
     o_avg_rel_inc, o_avg_rel_inc_fin, o_avg_req_mask_percent, o_avg_req_dilate_iter = sum_analysis(
         o_rel_inc, o_rel_inc_fin, o_req_mask_percent, o_req_dilate_iter,
         gd_imgs)
-    print 'o_avg_rel_inc--------', o_avg_rel_inc.astype(int)
-    print 'o_avg_rel_inc_fin----', o_avg_rel_inc_fin.astype(int)
-    print 'o_avg_req_mask_percent', o_avg_req_mask_percent.astype(int)
-    print 'o_avg_req_dilate_iter-', o_avg_req_dilate_iter.astype(int)
+    o_per_area_fin = o_avg_rel_inc_fin / o_avg_req_mask_percent
+    o_best_id = o_per_area_fin.argmax()
+    ##print 'o_avg_rel_inc--------', o_avg_rel_inc.astype(int)
+    #print 'o_avg_rel_inc_fin----', o_avg_rel_inc_fin.astype(int)
+    #print 'o_avg_req_dilate_iter-', o_avg_req_dilate_iter.astype(int)
+    #print 'o_avg_req_mask_percent', o_avg_req_mask_percent.astype(int)
+    print 'per area', o_per_area_fin
+    print "occ", occ_config[o_best_id]
+
     print '-----'
 
     g_avg_rel_inc, g_avg_rel_inc_fin, g_avg_req_mask_percent, g_avg_req_dilate_iter = sum_analysis(
         g_rel_inc, g_rel_inc_fin, g_req_mask_percent, g_req_dilate_iter,
         gd_imgs)
-    print 'g_avg_rel_inc--------', g_avg_rel_inc.astype(int)
-    print 'g_avg_rel_inc_fin----', g_avg_rel_inc_fin.astype(int)
-    print 'g_avg_req_mask_percent', g_avg_req_mask_percent.astype(int)
-    print 'g_avg_req_dilate_iter-', g_avg_req_dilate_iter.astype(int)
+    g_per_area_fin = g_avg_rel_inc_fin / g_avg_req_mask_percent
+    g_best_id = g_per_area_fin.argmax()
+    ##print 'g_avg_rel_inc--------', g_avg_rel_inc.astype(int)
+    #print 'g_avg_rel_inc_fin----', g_avg_rel_inc_fin.astype(int)
+    #print 'g_avg_req_dilate_iter-', g_avg_req_dilate_iter.astype(int)
+    #print 'g_avg_req_mask_percent', g_avg_req_mask_percent.astype(int)
+    print 'per area', g_per_area_fin
+    print "grad", grad_config[g_best_id]
     print '-----'
+
+    #occ_id = int(k % len(config2))
+    #grad_id = int(k / len(config2))
 
     com_og_avg_rel_inc, com_og_avg_rel_inc_fin, com_og_avg_req_mask_percent, com_og_avg_req_dilate_iter = sum_analysis(
         com_og_rel_inc, com_og_rel_inc_fin, com_og_req_mask_percent,
         com_og_req_dilate_iter, gd_imgs)
-    print 'com_og_avg_rel_inc--------', com_og_avg_rel_inc.astype(int)
-    print 'com_og_avg_rel_inc_fin----', com_og_avg_rel_inc_fin.astype(int)
-    print 'com_og_avg_req_mask_percent', com_og_avg_req_mask_percent.astype(
-        int)
-    print 'com_og_avg_req_dilate_iter-', com_og_avg_req_dilate_iter.astype(int)
+    com_og_per_area_fin = com_og_avg_rel_inc_fin / com_og_avg_req_mask_percent
+    com_og_best_id = com_og_per_area_fin.argmax()
+    com_og_occ_id = com_og_best_id % len(occ_config)
+    com_og_grad_id = com_og_best_id / len(occ_config)
+    ##print 'com_og_avg_rel_inc--------', com_og_avg_rel_inc.astype(int)
+    #print 'com_og_avg_rel_inc_fin----', com_og_avg_rel_inc_fin.astype(int)
+    #print 'com_og_avg_req_dilate_iter-', com_og_avg_req_dilate_iter.astype(int)
+    #print 'com_og_avg_req_mask_percent', com_og_avg_req_mask_percent.astype(
+    #    int)
+    print 'per area', com_og_per_area_fin
+    print "occ", occ_config[com_og_occ_id], "grad", grad_config[com_og_grad_id]
     print '-----'
 
-    neg_og_avg_rel_inc, neg_og_avg_rel_inc_fin, neg_og_avg_req_mask_percent, neg_og_avg_req_dilate_iter = sum_analysis(
-        neg_og_rel_inc, neg_og_rel_inc_fin, neg_og_req_mask_percent,
-        neg_og_req_dilate_iter, gd_imgs)
-    print 'neg_og_avg_rel_inc--------', neg_og_avg_rel_inc.astype(int)
-    print 'neg_og_avg_rel_inc_fin----', neg_og_avg_rel_inc_fin.astype(int)
-    print 'neg_og_avg_req_mask_percent', neg_og_avg_req_mask_percent.astype(
-        int)
-    print 'neg_og_avg_req_dilate_iter-', neg_og_avg_req_dilate_iter.astype(int)
-    print '-----'
+    #neg_og_avg_rel_inc, neg_og_avg_rel_inc_fin, neg_og_avg_req_mask_percent, neg_og_avg_req_dilate_iter = sum_analysis(
+    #    neg_og_rel_inc, neg_og_rel_inc_fin, neg_og_req_mask_percent,
+    #    neg_og_req_dilate_iter, gd_imgs)
+    ##print 'neg_og_avg_rel_inc--------', neg_og_avg_rel_inc.astype(int)
+    #print 'neg_og_avg_rel_inc_fin----', neg_og_avg_rel_inc_fin.astype(int)
+    #print 'neg_og_avg_req_dilate_iter-', neg_og_avg_req_dilate_iter.astype(int)
+    #print 'neg_og_avg_req_mask_percent', neg_og_avg_req_mask_percent.astype(
+    #    int)
+    #print 'per area', neg_og_avg_rel_inc_fin / neg_og_avg_req_mask_percent
+    #print '-----'
 
-    neg_go_avg_rel_inc, neg_go_avg_rel_inc_fin, neg_go_avg_req_mask_percent, neg_go_avg_req_dilate_iter = sum_analysis(
-        neg_go_rel_inc, neg_go_rel_inc_fin, neg_go_req_mask_percent,
-        neg_go_req_dilate_iter, gd_imgs)
-    print 'neg_go_avg_rel_inc--------', neg_go_avg_rel_inc.astype(int)
-    print 'neg_go_avg_rel_inc_fin----', neg_go_avg_rel_inc_fin.astype(int)
-    print 'neg_go_avg_req_mask_percent', neg_go_avg_req_mask_percent.astype(
-        int)
-    print 'neg_go_avg_req_dilate_iter-', neg_go_avg_req_dilate_iter.astype(int)
+    #neg_go_avg_rel_inc, neg_go_avg_rel_inc_fin, neg_go_avg_req_mask_percent, neg_go_avg_req_dilate_iter = sum_analysis(
+    #    neg_go_rel_inc, neg_go_rel_inc_fin, neg_go_req_mask_percent,
+    #    neg_go_req_dilate_iter, gd_imgs)
+    ##print 'neg_go_avg_rel_inc--------', neg_go_avg_rel_inc.astype(int)
+    #print 'neg_go_avg_rel_inc_fin----', neg_go_avg_rel_inc_fin.astype(int)
+    #print 'neg_go_avg_req_dilate_iter-', neg_go_avg_req_dilate_iter.astype(int)
+    #print 'neg_go_avg_req_mask_percent', neg_go_avg_req_mask_percent.astype(
+    #    int)
+    #print 'per area', neg_go_avg_rel_inc_fin / neg_go_avg_req_mask_percent
+    #print '-----'
+    #print '-----'
+    #print '-----'
+    #debug()
     print '-----'
-    print '-----'
-    print '-----'
-    print '-----'
-
-    print "done"
+print "done"

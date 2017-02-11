@@ -6,6 +6,7 @@ input_shape {
   dim: 227
   dim: 227
 }
+force_backward: true
 
 layer {
   name: "conv1"

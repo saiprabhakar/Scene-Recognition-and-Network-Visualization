@@ -17,5 +17,6 @@ todelete/*
 *.back
 *.pickle
 *.zip
+*.*~
 !siamese1.png
 !modified_siamese1.png

@@ -154,8 +154,6 @@ class SiameseTrainWrapper(object):
                     lossCos += lossCo
                     #lossId2s += lossId2
 
-                    #print "sim", self.solver.net.blobs[
-                    #    'sim'].data, "cont loss", lossCo, "id1", lossId1, "id2", lossId2
                 plot_data_id_l1 = np.vstack(
                     (plot_data_id_l1, [k, lossId1s / num_data_epoch_train]))
                 plot_data_all = np.vstack(
@@ -355,6 +353,8 @@ class SiameseTrainWrapper(object):
         IPython.embed()
 
     def visualize_all(self, fileName, tech, compare, visu_all_save_dir, save,
+                      outputLayerName, outputBlobName, topLayerName,
+                      topBlobName, secondTopLayerName, secondTopBlobName,
                       save_img):
         ''' Visualizing all and saving
         '''
@@ -370,20 +370,21 @@ class SiameseTrainWrapper(object):
         highlighted_ratio = self.heat_mask_ratio
         heat_map_occ_s = {}
         heat_map_raw_occ_s = {}
+        heat_map_exci_s = {}
+        heat_map_raw_exci_s = {}
         heat_map_grad_s = {}
         heat_map_raw_grad_s = {}
 
         size_patch_s = [10, 50, 100]
         dilate_iteration_s = [0, 2, 5]
-        tech_s = ['occ', 'grad']
+        #tech_s = ['occ', 'grad']
+        tech_s = ['occ', 'grad', 'exci']
+        #tech_s = ['exci']
 
         for i in lines:
             temp = i.split(' ')
             imageDict[temp[0]] = int(temp[1]) - self.class_adju
             imlist.append(temp[0])
-
-        #import ipdb
-        #ipdb.set_trace()
 
         for i in range(len(imlist)):
             im1 = i
@@ -436,19 +437,46 @@ class SiameseTrainWrapper(object):
             else:
                 heat_map_grad_s[i] = heat_map_raw_grad_s[i] = None
 
+            if 'exci' in tech_s:
+                # use excitation BP
+                for i in range(1):
+
+                    im_gen_exci, heat_map_exci, heat_map_raw_exci = self.generate_heat_map_excitation(
+                        imageDict,
+                        imlist,
+                        im1,
+                        outputLayerName,
+                        outputBlobName,
+                        topLayerName,
+                        topBlobName,
+                        secondTopLayerName,
+                        secondTopBlobName,
+                        ratio=highlighted_ratio)
+
+                    heat_map_exci_s[i] = heat_map_exci
+                    heat_map_raw_exci_s[i] = heat_map_raw_exci
+                    preName = visu_all_save_dir + '_exci/' + imlist[
+                        im1][:-4] + '-M-nSize-' + str(
+                            self.netSize) + '-tstamp-' + tStamp
+                    if save_img == 1:
+                        cv2.imwrite(preName + '.png', im_gen_exci)
+            else:
+                heat_map_exci_s[i] = heat_map_raw_exci_s[i] = None
+
             preName = visu_all_save_dir + '/' + imlist[
                 im1][:-4] + '--M-nSize-' + str(
                     self.netSize) + '-tstamp-' + tStamp + '--visualizations'
 
             if save == 1:
                 with open(preName + '.pickle', 'w') as f:
-                    pickle.dump([imlist[im1], imageDict[imlist[im1]], tech_s,
-                                 size_patch_s, dilate_iteration_s,
-                                 heat_map_occ_s, heat_map_raw_occ_s,
-                                 heat_map_grad_s, heat_map_raw_grad_s], f)
-
-        #import IPython
-        #IPython.embed()
+                    pickle.dump([imlist[im1],
+                                 imageDict[imlist[im1]],
+                                 tech_s,
+                                 size_patch_s,
+                                 dilate_iteration_s,
+                                 heat_map_raw_occ_s,
+                                 heat_map_raw_grad_s,
+                                 heat_map_raw_exci_s, ], f)
 
     def visualize(self, fileName, tech, compare):
         ''' Visualizing using gray occlusion patches or gradients of input image
@@ -560,12 +588,74 @@ class SiameseTrainWrapper(object):
             #import IPython
             #IPython.embed()
 
+    def generate_heat_map_excitation(
+            self, imageDict, imlist, im1, outputLayerName, outputBlobName,
+            topLayerName, topBlobName, secondTopLayerName, secondTopBlobName,
+            ratio):
+        im = h2._load_image(
+            img_name=self.data_folder + imlist[im1],
+            im_target_size=self.im_target_size)
+        blobs = {'data': None}
+        blobs['data'] = h2._get_image_blob_from_image(
+            im=im, meanarr=self.meanarr, im_target_size=self.im_target_size)
+        heat_map = np.zeros((self.im_target_size, self.im_target_size))
+        label_index = imageDict[imlist[im1]]
+        tagID = label_index
+        #TODO Read paper and decide on what topblob to use
+
+        pred = self.siameseTestNet.forward(
+            data=blobs['data'].astype(
+                np.float32, copy=True), end=topLayerName)
+
+        #do excitation BP
+        caffe.set_mode_eb_gpu()
+        self.siameseTestNet.blobs[topBlobName].diff[0][...] = 0
+        #TODO verify this
+        #self.siameseTestNet.blobs[topBlobName].diff[0][tagID] = np.exp(self.siameseTestNet.blobs[topBlobName].data[0][tagID].copy())
+        #self.siameseTestNet.blobs[topBlobName].diff[0][tagID] /= self.siameseTestNet.blobs[topBlobName].diff[0][tagID].sum()
+        self.siameseTestNet.blobs[topBlobName].diff[0][tagID] = 1
+        # invert the top layer weights
+        self.siameseTestNet.params[topLayerName][0].data[...] *= -1
+        out = self.siameseTestNet.backward(
+            start=topLayerName, end=secondTopLayerName)
+        buff = self.siameseTestNet.blobs[secondTopBlobName].diff.copy()
+        # invert back
+        self.siameseTestNet.params[topLayerName][0].data[...] *= -1
+        out = self.siameseTestNet.backward(
+            start=topLayerName, end=secondTopLayerName)
+        # compute the contrastive signal
+        self.siameseTestNet.blobs[secondTopBlobName].diff[...] -= buff
+        # generate heat map
+        out = self.siameseTestNet.backward(
+            start=secondTopLayerName, end=outputLayerName)
+        attMap = np.maximum(
+            self.siameseTestNet.blobs[outputBlobName].diff[0].sum(0), 0)
+
+        caffe.set_mode_gpu()
+
+        print "heat map size", attMap.shape
+        heat_map = h2._get_exci_final_map(attMap.copy(), self.im_target_size)
+        heat_map_raw = (heat_map - heat_map.min()) / (
+            heat_map.max() - heat_map.min())
+        heat_map = heat_map_raw.copy()
+        threshold = h2._find_threshold(heat_map, ratio=ratio)
+        heat_map[heat_map < threshold] = 0
+        heat_map[heat_map >= threshold] = 1
+
+        temp = np.sum(im, axis=2) / 3.0
+        im[:, :, 2] = temp
+        im[:, :, 1] = temp
+        im[:, :, 0] = temp
+        im[:, :, 2] += heat_map * 100
+
+        im = h2._round_image(im)
+        return im.astype(np.uint8), heat_map.astype(np.uint8), heat_map_raw
+
     def generate_heat_map_softmax(self, imageDict, imlist, im1, size_patch,
                                   stride, ratio):
         im = h2._load_image(
             img_name=self.data_folder + imlist[im1],
             im_target_size=self.im_target_size)
-        #print "no of occluded maps ", len(l_blobs_im1)
         blobs = {'data': None}
         heat_map = np.zeros((self.im_target_size, self.im_target_size))
 
@@ -576,9 +666,7 @@ class SiameseTrainWrapper(object):
         while im_size1 - 1 >= cR - 1:
             cC = -size_patch + 1
             while im_size2 - 1 > cC - 1:
-                #print i
                 i = i + 1
-                #for i in range(len(l_blobs_im1)):
                 l_blobs_im1, l_occ_map = h2._get_occluded_image_blob(
                     im=im,
                     size_patch=size_patch,
@@ -608,36 +696,25 @@ class SiameseTrainWrapper(object):
         heat_map[heat_map < threshold] = 0
         heat_map[heat_map >= threshold] = 1
         heat_map *= 1
-        #plt.matshow(heat_map)
-        #plt.colorbar()
-        #plt.show()
 
-        img1 = h2._load_image(
-            self.data_folder + imlist[im1], im_target_size=self.im_target_size)
-        img1_o = img1.copy()
-        temp = np.sum(img1, axis=2) / 3.0
-        img1[:, :, 2] = temp
-        img1[:, :, 1] = temp
-        img1[:, :, 0] = temp
-        img1[:, :, 2] += heat_map * 100
+        temp = np.sum(im, axis=2) / 3.0
+        im[:, :, 2] = temp
+        im[:, :, 1] = temp
+        im[:, :, 0] = temp
+        im[:, :, 2] += heat_map * 100
 
-        img1 = h2._round_image(img1)
-        #cv2.imshow('image', img1.astype(np.uint8))
-        #cv2.waitKey(0)
-        #cv2.destroyAllWindows()
-        return img1.astype(np.uint8), heat_map.astype(np.uint8), heat_map_o
+        im = h2._round_image(im)
+        return im.astype(np.uint8), heat_map.astype(np.uint8), heat_map_o
 
     def generate_heat_map_gradients(self, imageDict, imlist, im1, ratio,
                                     dilate_iterations):
-        blobs = {'data': None}
-        blobs['data'] = h2._get_image_blob(
+        im = h2._load_image(
             img_name=self.data_folder + imlist[im1],
-            meanarr=self.meanarr,
             im_target_size=self.im_target_size)
-
-        label_index = imageDict[imlist[im1]] - self.class_adju
-        caffe_data = np.random.random(
-            (1, 3, self.im_target_size, self.im_target_size))
+        blobs = {'data': None}
+        blobs['data'] = h2._get_image_blob_from_image(
+            im=im, meanarr=self.meanarr, im_target_size=self.im_target_size)
+        label_index = imageDict[imlist[im1]]
         caffeLabel = np.zeros((1, self.class_size))
         caffeLabel[0, label_index] = 1
 
@@ -656,7 +733,6 @@ class SiameseTrainWrapper(object):
 
         heat_map_raw = saliency.copy()
         kernel = np.ones((3, 3), np.uint8)
-        #iterations = 5
         if dilate_iterations > 0:
             heat_map_raw = cv2.dilate(
                 heat_map_raw, kernel, iterations=dilate_iterations)
@@ -666,31 +742,47 @@ class SiameseTrainWrapper(object):
         threshold = h2._find_threshold(heat_map, ratio=ratio)
         heat_map[heat_map < threshold] = 0
         heat_map[heat_map >= threshold] = 1
-        #plt.matshow(heat_map)
-        #plt.colorbar()
-        #plt.show()
 
-        img1 = h2._load_image(
-            self.data_folder + imlist[im1], im_target_size=self.im_target_size)
-        temp = np.sum(img1, axis=2) / 3.0
-        img1[:, :, 2] = temp
-        img1[:, :, 1] = temp
-        img1[:, :, 0] = temp
-        img1[:, :, 2] += heat_map * 100
+        temp = np.sum(im, axis=2) / 3.0
+        im[:, :, 2] = temp
+        im[:, :, 1] = temp
+        im[:, :, 0] = temp
+        im[:, :, 2] += heat_map * 100
 
-        img1 = h2._round_image(img1)
-        #plt.figure()
-        #plt.imshow(img1.astype(np.uint8))
-        #plt.show()
-        return img1.astype(np.uint8), heat_map.astype(np.uint8), heat_map_raw
+        im = h2._round_image(im)
+        return im.astype(np.uint8), heat_map.astype(np.uint8), heat_map_raw
 
 
-def siameseTrainer(siameseSolver, fileName_test_visu, pretrained_model,
-                   pretrainedSiameseModel, testProto, pretrained_model_proto,
-                   train, visu, testProto1, viz_tech, visu_all,
-                   visu_all_save_dir, compare, data_folder, heat_mask_ratio,
-                   final_layer, net, im_target_size, class_size, class_adju,
-                   meanfile, netSize, save, save_img):
+def siameseTrainer(siameseSolver,
+                   fileName_test_visu,
+                   pretrained_model,
+                   pretrainedSiameseModel,
+                   testProto,
+                   pretrained_model_proto,
+                   train,
+                   visu,
+                   testProto1,
+                   viz_tech,
+                   visu_all,
+                   visu_all_save_dir,
+                   compare,
+                   data_folder,
+                   heat_mask_ratio,
+                   final_layer,
+                   net,
+                   im_target_size,
+                   class_size,
+                   class_adju,
+                   meanfile,
+                   netSize,
+                   save,
+                   save_img,
+                   outputLayerName,
+                   outputBlobName,
+                   topLayerName,
+                   topBlobName,
+                   secondTopLayerName,
+                   secondTopBlobName, ):
     sw = SiameseTrainWrapper(
         solver_prototxt=siameseSolver,
         pretrainedSiameseModel=pretrainedSiameseModel,
@@ -725,6 +817,12 @@ def siameseTrainer(siameseSolver, fileName_test_visu, pretrained_model,
                 compare=compare,
                 visu_all_save_dir=visu_all_save_dir,
                 save=save,
+                outputLayerName=outputLayerName,
+                outputBlobName=outputBlobName,
+                topLayerName=topLayerName,
+                topBlobName=topBlobName,
+                secondTopLayerName=secondTopLayerName,
+                secondTopBlobName=secondTopBlobName,
                 save_img=save_img)
     elif visu == 0:
         print 'testing not implemented'

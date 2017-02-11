@@ -11,11 +11,11 @@ from modifiedSiamese.analyse_vis import *
 #to test toggle only train
 #to save all the possible masks of visualization use visu_all_pos and visu
 v = 1
-#net = "floor"
-net = "places"
+net = "floor"
+#net = "places"
 tech = 'both'
-save_data = 1
-save_img = 0
+save_data = 0
+save_img = 1
 
 if v == 1:
     visu = 1
@@ -26,7 +26,7 @@ else:
     visu_all_pos = False
     analyse_all_visualizations = 1
 
-heat_mask_ratio = 0.5
+heat_mask_ratio = 0.25
 
 if net == "floor":
     netSize = 1000
@@ -43,6 +43,12 @@ if net == "floor":
     im_target_size = 227
     final_layer = 'fc9_f'  #final_layer
     data_index = ''
+    outputLayerName = 'pool2'
+    outputBlobName = 'pool2'
+    topBlobName = 'fc9_f'
+    topLayerName = 'fc9_f'
+    secondTopLayerName = 'fc8_s'
+    secondTopBlobName = 'fc8_s_r'
 
 elif net == "places":
     netSize = 1000
@@ -57,7 +63,14 @@ elif net == "places":
     data_folder = 'data/data_places/val_256/'
     im_target_size = 227
     final_layer = 'fc8'  #final_layer
+    outputLayerName = 'pool2'
+    outputBlobName = 'pool2'
+    topBlobName = 'fc9_f'
+    topLayerName = 'fc9_f'
+    secondTopLayerName = 'fc8_s'
+    secondTopBlobName = 'fc8_s_r'
 print heat_mask_ratio
+print fileName_test_visu
 #####################################################
 
 pretrained_model_proto = None  #'placesOriginalModel/places_processed.prototxt'
@@ -66,6 +79,7 @@ siameseSolver = None  #'modifiedSiameseModels/siamesePlaces_' + str(netSize) + '
 train = 0
 
 # mkdir <net>_NetResults_visu_grad/occ
+#save dir is used by cam too
 visu_all_save_dir = "visu/" + net + '_NetResults_visu' + data_index
 visu_all_analyse_dir = 'visu/' + net + '_NetResults_visu' + data_index + '/'
 #visu_all_analyse_dir = 'visu/' + net + '_NetResults_visu_back/'
@@ -104,7 +118,7 @@ if analyse_all_visualizations == 1:
         save_img=save_img,
         save_data=save_data,
         data_folder=data_folder)
-else:
+elif visu == 1:
     siameseTrainer(
         siameseSolver=siameseSolver,
         pretrainedSiameseModel=pretrainedSiameseModel,
@@ -129,4 +143,10 @@ else:
         class_adju=class_adju,
         save=save_data,
         save_img=save_img,
-        netSize=netSize)
+        netSize=netSize,
+        outputLayerName=outputLayerName,
+        outputBlobName=outputBlobName,
+        topLayerName=topLayerName,
+        topBlobName=topBlobName,
+        secondTopLayerName=secondTopLayerName,
+        secondTopBlobName=secondTopBlobName, )

@@ -14,6 +14,8 @@ import matplotlib.cbook
 from ipdb import set_trace as debug
 warnings.filterwarnings("ignore", category=matplotlib.cbook.mplDeprecation)
 
+from skimage import transform
+
 
 def _get_prob(p, class_index_n):
     p = p - p.min()
@@ -28,7 +30,7 @@ def _visu_heat_map(img1, heat_map):
     img1[:, :, 1] = temp
     img1[:, :, 0] = temp
     img1[:, :, 2] += heat_map * 100
-    #TODO correct range
+    img1 = _round_image(img1)
     return img1
 
 
@@ -52,10 +54,11 @@ def _combine_images(img1, mask, img2):
     mask - visualized mask
     """
     n_mask = abs(1 - mask)
-    n_mask = np.repeat(n_mask[:, :, np.newaxis], 3, axis=2)
-    mask = np.repeat(mask[:, :, np.newaxis], 3, axis=2)
-
-    return mask * img2 + n_mask * img1
+    return np.stack(
+        [mask * img2[:, :, 0] + n_mask * img1[:, :, 0],
+         mask * img2[:, :, 1] + n_mask * img1[:, :, 1],
+         mask * img2[:, :, 2] + n_mask * img1[:, :, 2]],
+        axis=2)
 
 
 def _analyse_heat_maps(heat_map1, heat_map2):
@@ -129,6 +132,19 @@ def _get_image_blob_from_image(im, meanarr, im_target_size):
     processed_ims = im - meanarr
     blob = im_to_blob(processed_ims)
     return blob
+
+
+def _get_exci_final_map(attMap, size):
+    attMap -= attMap.min()
+    if attMap.max() > 0:
+        attMap /= attMap.max()
+    #attMap = transform.resize(attMap, (img.shape[:2]), order = 3, mode = 'nearest')
+    attMap = transform.resize(attMap, (size, size), order=3, mode='edge')
+    #if blur:
+    #    attMap = filters.gaussian_filter(attMap, 0.02*max(img.shape[:2]))
+    attMap -= attMap.min()
+    attMap /= attMap.max()
+    return attMap
 
 
 def _load_image(img_name, im_target_size):
