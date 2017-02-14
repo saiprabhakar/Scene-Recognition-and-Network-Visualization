@@ -380,7 +380,7 @@ class SiameseTrainWrapper(object):
         #tech_s = ['occ', 'grad']
         tech_s = ['occ', 'grad', 'exci']
         #tech_s = ['exci']
-
+        print outputLayerName, outputBlobName
         for i in lines:
             temp = i.split(' ')
             imageDict[temp[0]] = int(temp[1]) - self.class_adju
@@ -469,14 +469,10 @@ class SiameseTrainWrapper(object):
 
             if save == 1:
                 with open(preName + '.pickle', 'w') as f:
-                    pickle.dump([imlist[im1],
-                                 imageDict[imlist[im1]],
-                                 tech_s,
-                                 size_patch_s,
-                                 dilate_iteration_s,
-                                 heat_map_raw_occ_s,
-                                 heat_map_raw_grad_s,
-                                 heat_map_raw_exci_s, ], f)
+                    pickle.dump([imlist[im1], imageDict[imlist[im1]], tech_s,
+                                 size_patch_s, outputBlobName, outputLayerName,
+                                 dilate_iteration_s, heat_map_raw_occ_s,
+                                 heat_map_raw_grad_s, heat_map_raw_exci_s], f)
 
     def visualize(self, fileName, tech, compare):
         ''' Visualizing using gray occlusion patches or gradients of input image
@@ -606,7 +602,6 @@ class SiameseTrainWrapper(object):
         pred = self.siameseTestNet.forward(
             data=blobs['data'].astype(
                 np.float32, copy=True), end=topLayerName)
-
         #do excitation BP
         caffe.set_mode_eb_gpu()
         self.siameseTestNet.blobs[topBlobName].diff[0][...] = 0

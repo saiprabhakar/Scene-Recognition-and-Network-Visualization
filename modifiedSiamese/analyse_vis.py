@@ -67,6 +67,7 @@ class AnalyseVisualizations(object):
     def analyse_visualizations(self, database_fileName, visu_all_analyse_dir):
         """Analysing visualizations saved in the files
         """
+        seperate = 0
         tStamp = '-Timestamp-{:%Y-%m-%d-%H:%M:%S}'.format(
             datetime.datetime.now())
         tStamp = ''
@@ -82,7 +83,7 @@ class AnalyseVisualizations(object):
         visu_file = visu_all_analyse_dir + visu_file_s[0]
         with open(visu_file) as f:
             #im_name, class_index, tech_s, size_patch_s, dilate_iteration_s, heat_map_occ_s, heat_map_raw_occ_s, heat_map_grad_s, heat_map_raw_grad_s = pickle.load(f)
-            im_name, class_index, tech_s, size_patch_s, dilate_iteration_s, heat_map_raw_occ_s, heat_map_raw_grad_s, heat_raw_exci_s = pickle.load(
+            im_name, class_index, tech_s, size_patch_s, outputBlobName, outputLayerName, dilate_iteration_s, heat_map_raw_occ_s, heat_map_raw_grad_s, heat_raw_exci_s = pickle.load(
                 f)
 
         # different ways to combine the images
@@ -90,7 +91,7 @@ class AnalyseVisualizations(object):
         for p in range(len(combine_tech_s)):
             combine_tech = combine_tech_s[p]
 
-            if 1 == 1:
+            if seperate == 1:
                 part_name = '_' + self.net + '_' + "thres" + str(
                     int(100 * self.heat_mask_ratio)) + '-' + str(
                         combine_tech) + "-" + tStamp + visu_all_analyse_dir[-2:
@@ -102,17 +103,19 @@ class AnalyseVisualizations(object):
                 orig_prob_s = np.zeros((len(visu_file_s), 1))
                 less_per = np.zeros((len(visu_file_s), 1))
 
+                e_prob = np.zeros((len(visu_file_s), 1))
+                e_prob_fin = np.zeros((len(visu_file_s), 1))
+                e_rel_inc_fin = np.zeros((len(visu_file_s), 1))
+                e_rel_inc = np.zeros((len(visu_file_s), 1))
+                e_req_mask_percent = np.zeros((len(visu_file_s), 1))
+                e_req_dilate_iter = np.zeros((len(visu_file_s), 1)) - 2
+                preName_exci_visu_init = []
+                preName_exci_visu_fin = []
+                preName_exci_init = []
+                preName_exci_fin = []
+
                 o_prob = np.zeros((len(visu_file_s), 1))
                 o_prob_fin = np.zeros((len(visu_file_s), 1))
-                g_prob = np.zeros((len(visu_file_s), 1))
-                g_prob_fin = np.zeros((len(visu_file_s), 1))
-                com_og_prob = np.zeros((len(visu_file_s), 1))
-                com_og_prob_fin = np.zeros((len(visu_file_s), 1))
-                neg_og_prob = np.zeros((len(visu_file_s), 1))
-                neg_og_prob_fin = np.zeros((len(visu_file_s), 1))
-                neg_go_prob = np.zeros((len(visu_file_s), 1))
-                neg_go_prob_fin = np.zeros((len(visu_file_s), 1))
-
                 o_rel_inc_fin = np.zeros((len(visu_file_s), len(size_patch_s)))
                 o_rel_inc = np.zeros((len(visu_file_s), len(size_patch_s)))
                 o_req_mask_percent = np.zeros(
@@ -124,6 +127,8 @@ class AnalyseVisualizations(object):
                 preName_occ_init = []
                 preName_occ_fin = []
 
+                g_prob = np.zeros((len(visu_file_s), 1))
+                g_prob_fin = np.zeros((len(visu_file_s), 1))
                 g_req_dilate_iter = np.zeros(
                     (len(visu_file_s), len(dilate_iteration_s))) - 2
                 g_req_mask_percent = np.zeros(
@@ -137,57 +142,51 @@ class AnalyseVisualizations(object):
                 preName_grad_init = []
                 preName_grad_fin = []
 
-                com_og_req_dilate_iter = np.zeros(
-                    (len(visu_file_s), len(dilate_iteration_s) *
-                     len(size_patch_s))) - 2
-                com_og_req_mask_percent = np.zeros(
-                    (len(visu_file_s),
-                     len(dilate_iteration_s) * len(size_patch_s)))
-                com_og_rel_inc = np.zeros(
-                    (len(visu_file_s),
-                     len(dilate_iteration_s) * len(size_patch_s)))
-                com_og_rel_inc_fin = np.zeros(
-                    (len(visu_file_s),
-                     len(dilate_iteration_s) * len(size_patch_s)))
+            else:
+                part_name = '_' + self.net + '_' + "thres" + str(
+                    int(100 * self.heat_mask_ratio)) + '-' + str(
+                        combine_tech) + "-" + tStamp + visu_all_analyse_dir[-2:
+                                                                            -1]
+                print part_name
+                images = []
+                class_index_s = []
+
+                mod_prob_s = np.zeros((len(visu_file_s), 1))
+                orig_prob_s = np.zeros((len(visu_file_s), 1))
+                less_per = np.zeros((len(visu_file_s), 1))
+
+                com_og_prob = np.zeros((len(visu_file_s), 1))
+                com_og_prob_fin = np.zeros((len(visu_file_s), 1))
+                com_og_req_dilate_iter = np.zeros((len(visu_file_s), 1)) - 2
+                com_og_req_mask_percent = np.zeros((len(visu_file_s), 1))
+                com_og_rel_inc = np.zeros((len(visu_file_s), 1))
+                com_og_rel_inc_fin = np.zeros((len(visu_file_s), 1))
                 preName_com_og_visu_init = []
                 preName_com_og_visu_fin = []
                 preName_com_og_init = []
                 preName_com_og_fin = []
 
-                neg_go_req_dilate_iter = np.zeros(
-                    (len(visu_file_s), len(dilate_iteration_s) *
-                     len(size_patch_s))) - 2
-                neg_go_req_mask_percent = np.zeros(
-                    (len(visu_file_s),
-                     len(dilate_iteration_s) * len(size_patch_s)))
-                neg_go_rel_inc = np.zeros(
-                    (len(visu_file_s),
-                     len(dilate_iteration_s) * len(size_patch_s)))
-                neg_go_rel_inc_fin = np.zeros(
-                    (len(visu_file_s),
-                     len(dilate_iteration_s) * len(size_patch_s)))
-                preName_neg_go_visu_init = []
-                preName_neg_go_visu_fin = []
-                preName_neg_go_init = []
-                preName_neg_go_fin = []
+                com_ge_prob = np.zeros((len(visu_file_s), 1))
+                com_ge_prob_fin = np.zeros((len(visu_file_s), 1))
+                com_ge_req_dilate_iter = np.zeros((len(visu_file_s), 1)) - 2
+                com_ge_req_mask_percent = np.zeros((len(visu_file_s), 1))
+                com_ge_rel_inc = np.zeros((len(visu_file_s), 1))
+                com_ge_rel_inc_fin = np.zeros((len(visu_file_s), 1))
+                preName_com_ge_visu_init = []
+                preName_com_ge_visu_fin = []
+                preName_com_ge_init = []
+                preName_com_ge_fin = []
 
-                neg_og_req_dilate_iter = np.zeros(
-                    (len(visu_file_s), len(dilate_iteration_s) *
-                     len(size_patch_s))) - 2
-                neg_og_req_mask_percent = np.zeros(
-                    (len(visu_file_s),
-                     len(dilate_iteration_s) * len(size_patch_s)))
-                neg_og_rel_inc = np.zeros(
-                    (len(visu_file_s),
-                     len(dilate_iteration_s) * len(size_patch_s)))
-                neg_og_rel_inc_fin = np.zeros(
-                    (len(visu_file_s),
-                     len(dilate_iteration_s) * len(size_patch_s)))
-                preName_neg_og_visu_init = []
-                preName_neg_og_visu_fin = []
-                preName_neg_og_init = []
-                preName_neg_og_fin = []
-
+                com_oe_prob = np.zeros((len(visu_file_s), 1))
+                com_oe_prob_fin = np.zeros((len(visu_file_s), 1))
+                com_oe_req_dilate_iter = np.zeros((len(visu_file_s), 1)) - 2
+                com_oe_req_mask_percent = np.zeros((len(visu_file_s), 1))
+                com_oe_rel_inc = np.zeros((len(visu_file_s), 1))
+                com_oe_rel_inc_fin = np.zeros((len(visu_file_s), 1))
+                preName_com_oe_visu_init = []
+                preName_com_oe_visu_fin = []
+                preName_com_oe_init = []
+                preName_com_oe_fin = []
             # for all files
             for i in range(len(visu_file_s)):
                 visu_file = visu_all_analyse_dir + visu_file_s[i]
@@ -195,7 +194,7 @@ class AnalyseVisualizations(object):
                 # load files
                 with open(visu_file) as f:
                     #im_name, class_index, tech_s, size_patch_s, dilate_iteration_s, heat_map_occ_s_25, heat_map_raw_occ_s, heat_map_grad_s_25, heat_map_raw_grad_s = pickle.load(f)
-                    im_name, class_index, tech_s, size_patch_s, dilate_iteration_s, heat_map_raw_occ_s, heat_map_raw_grad_s, heat_map_raw_exci_s = pickle.load(
+                    im_name, class_index, tech_s, size_patch_s, outputBlobName, outputLayerName, dilate_iteration_s, heat_map_raw_occ_s, heat_map_raw_grad_s, heat_map_raw_exci_s = pickle.load(
                         f)
 
                 #import IPython
@@ -238,158 +237,195 @@ class AnalyseVisualizations(object):
                 mod_prob_s[i] = mod_prob
                 orig_prob_s[i] = orig_prob
                 if 1 == 1:  #orig_prob - mod_prob > 0.0:
+                    if seperate == 1:
+                        # using occlusion visualization
+                        preName1, preName2, preName3, preName4, rel_inc_1, rel_inc_2, req_percent, req_dilate_iter, heat_mask, prob_init, prob_fin, com_order_conf1, com_order_conf2 = self.find_mask_confidence_analysis(
+                            config=size_patch_s,
+                            raw_map=heat_map_raw_occ_s,
+                            mask_ratio=self.heat_mask_ratio,
+                            img=img,
+                            mod_img=mod_img,
+                            im_name=im_name,
+                            class_index=class_index,
+                            orig_prob=orig_prob,
+                            mod_prob=mod_prob,
+                            part_name=part_name,
+                            tech_name='occ',
+                            config2=None,
+                            raw_map2=None,
+                            tech1=None,
+                            tech2=None)
 
-                    # using occlusion visualization
-                    preName1, preName2, preName3, preName4, rel_inc_1, rel_inc_2, req_percent, req_dilate_iter, heat_mask, prob_init, prob_fin = self.find_mask_confidence_analysis(
-                        config=size_patch_s,
-                        raw_map=heat_map_raw_occ_s,
-                        mask_ratio=self.heat_mask_ratio,
-                        img=img,
-                        mod_img=mod_img,
-                        im_name=im_name,
-                        class_index=class_index,
-                        orig_prob=orig_prob,
-                        mod_prob=mod_prob,
-                        part_name=part_name,
-                        tech_name='occ',
-                        config2=None,
-                        raw_map2=None,
-                        tech1=None,
-                        tech2=None)
+                        heat_mask_occ_init_s = heat_mask
+                        preName_occ_visu_init += preName1
+                        preName_occ_visu_fin += preName2
+                        preName_occ_init += preName3
+                        preName_occ_fin += preName4
+                        o_prob[i, :] = prob_init
+                        o_prob_fin[i, :] = prob_fin
+                        o_rel_inc[i, :] = rel_inc_1
+                        o_rel_inc_fin[i, :] = rel_inc_2
+                        o_req_mask_percent[i, :] = req_percent
+                        o_req_dilate_iter[i, :] = req_dilate_iter
 
-                    heat_mask_occ_init_s = heat_mask
-                    preName_occ_visu_init += preName1
-                    preName_occ_visu_fin += preName2
-                    preName_occ_init += preName3
-                    preName_occ_fin += preName4
-                    o_prob[i, :] = prob_init
-                    o_prob_fin[i, :] = prob_fin
-                    o_rel_inc[i, :] = rel_inc_1
-                    o_rel_inc_fin[i, :] = rel_inc_2
-                    o_req_mask_percent[i, :] = req_percent
-                    o_req_dilate_iter[i, :] = req_dilate_iter
+                        # using gradient visualization
+                        preName1, preName2, preName3, preName4, rel_inc_1, rel_inc_2, req_percent, req_dilate_iter, heat_mask, prob_init, prob_fin, com_order_conf1, com_order_conf2 = self.find_mask_confidence_analysis(
+                            config=dilate_iteration_s,
+                            raw_map=heat_map_raw_grad_s,
+                            mask_ratio=self.heat_mask_ratio,
+                            img=img,
+                            mod_img=mod_img,
+                            im_name=im_name,
+                            class_index=class_index,
+                            orig_prob=orig_prob,
+                            mod_prob=mod_prob,
+                            part_name=part_name,
+                            tech_name='grad',
+                            config2=None,
+                            raw_map2=None,
+                            tech1=None,
+                            tech2=None)
 
-                    #debug()
-                    # using gradient visualization
-                    preName1, preName2, preName3, preName4, rel_inc_1, rel_inc_2, req_percent, req_dilate_iter, heat_mask, prob_init, prob_fin = self.find_mask_confidence_analysis(
-                        config=dilate_iteration_s,
-                        raw_map=heat_map_raw_grad_s,
-                        mask_ratio=self.heat_mask_ratio,
-                        img=img,
-                        mod_img=mod_img,
-                        im_name=im_name,
-                        class_index=class_index,
-                        orig_prob=orig_prob,
-                        mod_prob=mod_prob,
-                        part_name=part_name,
-                        tech_name='grad',
-                        config2=None,
-                        raw_map2=None,
-                        tech1=None,
-                        tech2=None)
+                        heat_mask_grad_init_s = heat_mask
+                        preName_grad_visu_init += preName1
+                        preName_grad_visu_fin += preName2
+                        preName_grad_init += preName3
+                        preName_grad_fin += preName4
+                        g_prob[i, :] = prob_init
+                        g_prob_fin[i, :] = prob_fin
+                        g_rel_inc[i, :] = rel_inc_1
+                        g_rel_inc_fin[i, :] = rel_inc_2
+                        g_req_mask_percent[i, :] = req_percent
+                        g_req_dilate_iter[i, :] = req_dilate_iter
 
-                    heat_mask_grad_init_s = heat_mask
-                    preName_grad_visu_init += preName1
-                    preName_grad_visu_fin += preName2
-                    preName_grad_init += preName3
-                    preName_grad_fin += preName4
-                    g_prob[i, :] = prob_init
-                    g_prob_fin[i, :] = prob_fin
-                    g_rel_inc[i, :] = rel_inc_1
-                    g_rel_inc_fin[i, :] = rel_inc_2
-                    g_req_mask_percent[i, :] = req_percent
-                    g_req_dilate_iter[i, :] = req_dilate_iter
+                        # using exciBP visualization
+                        preName1, preName2, preName3, preName4, rel_inc_1, rel_inc_2, req_percent, req_dilate_iter, heat_mask, prob_init, prob_fin, com_order_conf1, com_order_conf2 = self.find_mask_confidence_analysis(
+                            config=[1],#dilate_iteration_s,
+                            raw_map=heat_map_raw_exci_s,
+                            mask_ratio=self.heat_mask_ratio,
+                            img=img,
+                            mod_img=mod_img,
+                            im_name=im_name,
+                            class_index=class_index,
+                            orig_prob=orig_prob,
+                            mod_prob=mod_prob,
+                            part_name=part_name,
+                            tech_name='exci',
+                            config2=None,
+                            raw_map2=None,
+                            tech1=None,
+                            tech2=None)
 
-                    #TODO
-                    #intersection of occlusion and gradients
-                    #tech_name = 'com_inter_'
-                    preName1, preName2, preName3, preName4, rel_inc_1, rel_inc_2, req_percent, req_dilate_iter, heat_mask, prob_init, prob_fin = self.find_mask_confidence_analysis(
-                        config=dilate_iteration_s,
-                        raw_map=heat_map_raw_grad_s,
-                        mask_ratio=self.heat_mask_ratio,
-                        img=img,
-                        mod_img=mod_img,
-                        im_name=im_name,
-                        class_index=class_index,
-                        orig_prob=orig_prob,
-                        mod_prob=mod_prob,
-                        part_name=part_name,
-                        tech_name='com_inter_',
-                        config2=size_patch_s,
-                        raw_map2=heat_map_raw_occ_s,
-                        tech1='grad',
-                        tech2='occ')
+                        heat_mask_exci_init_s = heat_mask
+                        preName_exci_visu_init += preName1
+                        preName_exci_visu_fin += preName2
+                        preName_exci_init += preName3
+                        preName_exci_fin += preName4
+                        e_prob[i, :] = prob_init
+                        e_prob_fin[i, :] = prob_fin
+                        e_rel_inc[i, :] = rel_inc_1
+                        e_rel_inc_fin[i, :] = rel_inc_2
+                        e_req_mask_percent[i, :] = req_percent
+                        e_req_dilate_iter[i, :] = req_dilate_iter
+                    else:  # seperate == 0:
+                        #intersection of occlusion and gradients
+                        #tech_name = 'com_inter_'
+                        best_dilate = 2  #5 thres 25
+                        best_patch = 0  #10 thres 25
+                        dilate_iteration_s = np.array(
+                            [dilate_iteration_s[best_dilate]])
+                        size_patch_s = np.array([size_patch_s[best_patch]])
+                        heat_map_raw_grad_s = np.array(
+                            [heat_map_raw_grad_s[best_dilate]])
+                        heat_map_raw_occ_s = np.array(
+                            [heat_map_raw_occ_s[best_patch]])
 
-                    heat_mask_com_s = heat_mask
-                    preName_com_og_visu_init += preName1
-                    preName_com_og_visu_fin += preName2
-                    preName_com_og_init += preName3
-                    preName_com_og_fin += preName4
-                    com_og_prob[i, :] = prob_init
-                    com_og_prob_fin[i, :] = prob_fin
-                    com_og_rel_inc[i, :] = rel_inc_1
-                    com_og_rel_inc_fin[i, :] = rel_inc_2
-                    com_og_req_mask_percent[i, :] = req_percent
-                    com_og_req_dilate_iter[i, :] = req_dilate_iter
+                        preName1, preName2, preName3, preName4, rel_inc_1, rel_inc_2, req_percent, req_dilate_iter, heat_mask, prob_init, prob_fin, com_order_conf1, com_order_conf2 = self.find_mask_confidence_analysis(
+                            config=dilate_iteration_s,
+                            raw_map=heat_map_raw_grad_s,
+                            mask_ratio=self.heat_mask_ratio,
+                            img=img,
+                            mod_img=mod_img,
+                            im_name=im_name,
+                            class_index=class_index,
+                            orig_prob=orig_prob,
+                            mod_prob=mod_prob,
+                            part_name=part_name,
+                            tech_name='com_inter_',
+                            config2=size_patch_s,
+                            raw_map2=heat_map_raw_occ_s,
+                            tech1='grad',
+                            tech2='occ')
 
-                    ##neg gradient with occlusion
-                    ##tech_name = 'com_neg1'
-                    #preName1, preName2, preName3, preName4, rel_inc_1, rel_inc_2, req_percent, req_dilate_iter, heat_mask, prob_init, prob_fin = self.find_mask_confidence_analysis(
-                    #    config=dilate_iteration_s,
-                    #    raw_map=heat_map_raw_grad_s,
-                    #    mask_ratio=self.heat_mask_ratio,
-                    #    img=img,
-                    #    mod_img=mod_img,
-                    #    im_name=im_name,
-                    #    class_index=class_index,
-                    #    orig_prob=orig_prob,
-                    #    mod_prob=mod_prob,
-                    #    part_name=part_name,
-                    #    tech_name='com_neg1',
-                    #    config2=size_patch_s,
-                    #    raw_map2=heat_map_raw_occ_s,
-                    #    tech1='grad',
-                    #    tech2='occ')
+                        heat_mask_com_og_s = heat_mask
+                        preName_com_og_visu_init += preName1
+                        preName_com_og_visu_fin += preName2
+                        preName_com_og_init += preName3
+                        preName_com_og_fin += preName4
+                        com_og_prob[i, :] = prob_init
+                        com_og_prob_fin[i, :] = prob_fin
+                        com_og_rel_inc[i, :] = rel_inc_1
+                        com_og_rel_inc_fin[i, :] = rel_inc_2
+                        com_og_req_mask_percent[i, :] = req_percent
+                        com_og_req_dilate_iter[i, :] = req_dilate_iter
 
-                    #heat_mask_neg_go_s = heat_mask
-                    #preName_neg_go_visu_init += preName1
-                    #preName_neg_go_visu_fin += preName2
-                    #preName_neg_go_init += preName3
-                    #preName_neg_go_fin += preName4
-                    #neg_go_prob[i, :] = prob_init
-                    #neg_go_prob_fin[i, :] = prob_fin
-                    #neg_go_rel_inc[i, :] = rel_inc_1
-                    #neg_go_rel_inc_fin[i, :] = rel_inc_2
-                    #neg_go_req_mask_percent[i, :] = req_percent
-                    #neg_go_req_dilate_iter[i, :] = req_dilate_iter
+                        preName1, preName2, preName3, preName4, rel_inc_1, rel_inc_2, req_percent, req_dilate_iter, heat_mask, prob_init, prob_fin, com_order_conf1, com_order_conf2 = self.find_mask_confidence_analysis(
+                            config=[1],
+                            raw_map=heat_map_raw_exci_s,
+                            mask_ratio=self.heat_mask_ratio,
+                            img=img,
+                            mod_img=mod_img,
+                            im_name=im_name,
+                            class_index=class_index,
+                            orig_prob=orig_prob,
+                            mod_prob=mod_prob,
+                            part_name=part_name,
+                            tech_name='com_inter_',
+                            config2=size_patch_s,
+                            raw_map2=heat_map_raw_occ_s,
+                            tech1='exci',
+                            tech2='occ')
 
-                    ##neg occlusion with gradient
-                    ##tech_name = 'com_neg2'
-                    #preName1, preName2, preName3, preName4, rel_inc_1, rel_inc_2, req_percent, req_dilate_iter, heat_mask, prob_init, prob_fin = self.find_mask_confidence_analysis(
-                    #    config=dilate_iteration_s,
-                    #    raw_map=heat_map_raw_grad_s,
-                    #    mask_ratio=self.heat_mask_ratio,
-                    #    img=img,
-                    #    mod_img=mod_img,
-                    #    im_name=im_name,
-                    #    class_index=class_index,
-                    #    orig_prob=orig_prob,
-                    #    mod_prob=mod_prob,
-                    #    part_name=part_name,
-                    #    tech_name='com_neg2',
-                    #    config2=size_patch_s,
-                    #    raw_map2=heat_map_raw_occ_s,
-                    #    tech1='grad',
-                    #    tech2='occ')
+                        heat_mask_com_oe_s = heat_mask
+                        preName_com_oe_visu_init += preName1
+                        preName_com_oe_visu_fin += preName2
+                        preName_com_oe_init += preName3
+                        preName_com_oe_fin += preName4
+                        com_oe_prob[i, :] = prob_init
+                        com_oe_prob_fin[i, :] = prob_fin
+                        com_oe_rel_inc[i, :] = rel_inc_1
+                        com_oe_rel_inc_fin[i, :] = rel_inc_2
+                        com_oe_req_mask_percent[i, :] = req_percent
+                        com_oe_req_dilate_iter[i, :] = req_dilate_iter
 
-                    #heat_mask_neg_og_s = heat_mask
-                    #preName_neg_og_visu_init += preName1
-                    #preName_neg_og_visu_fin += preName2
-                    #preName_neg_og_init += preName3
-                    #preName_neg_og_fin += preName4
-                    #neg_og_prob[i, :] = prob_init
-                    #neg_og_prob_fin[i, :] = prob_fin
+                        preName1, preName2, preName3, preName4, rel_inc_1, rel_inc_2, req_percent, req_dilate_iter, heat_mask, prob_init, prob_fin, com_order_conf1, com_order_conf2 = self.find_mask_confidence_analysis(
+                            config=[1],
+                            raw_map=heat_map_raw_exci_s,
+                            mask_ratio=self.heat_mask_ratio,
+                            img=img,
+                            mod_img=mod_img,
+                            im_name=im_name,
+                            class_index=class_index,
+                            orig_prob=orig_prob,
+                            mod_prob=mod_prob,
+                            part_name=part_name,
+                            tech_name='com_inter_',
+                            config2=size_patch_s,
+                            raw_map2=heat_map_raw_grad_s,
+                            tech1='exci',
+                            tech2='grad')
 
+                        heat_mask_com_ge_s = heat_mask
+                        preName_com_ge_visu_init += preName1
+                        preName_com_ge_visu_fin += preName2
+                        preName_com_ge_init += preName3
+                        preName_com_ge_fin += preName4
+                        com_ge_prob[i, :] = prob_init
+                        com_ge_prob_fin[i, :] = prob_fin
+                        com_ge_rel_inc[i, :] = rel_inc_1
+                        com_ge_rel_inc_fin[i, :] = rel_inc_2
+                        com_ge_req_mask_percent[i, :] = req_percent
+                        com_ge_req_dilate_iter[i, :] = req_dilate_iter
                 else:
                     less_per[i] = 1
 
@@ -412,74 +448,103 @@ class AnalyseVisualizations(object):
             #print "occ sum", o_rel_inc_avg, "best perfomance", best_patch_size_init
             #print "grd_sum", g_rel_inc_avg, "best perfomance", best_dilate_iter_init
 
-            data = {
-                'tStamp': tStamp,
-                'images': images,
-                'mod_prob_s': mod_prob_s,
-                'orig_prob_s': orig_prob_s,
-                'class_index_s': class_index_s,
-                'heat_mask_ratio': self.heat_mask_ratio,
-                'combine_tech': combine_tech,
-                'o_rel_inc': o_rel_inc,  ##
-                'o_rel_inc_fin': o_rel_inc_fin,  ##
-                'o_req_mask_percent': o_req_mask_percent,  ##
-                'o_req_dilate_iter': o_req_dilate_iter,  ##
-                'preName_occ_init': preName_occ_init,
-                'preName_occ_fin': preName_occ_fin,
-                'preName_occ_visu_init': preName_occ_visu_init,
-                'preName_occ_visu_fin': preName_occ_visu_fin,
-                'g_rel_inc': g_rel_inc,
-                'g_req_dilate_iter': g_req_dilate_iter,
-                'g_req_mask_percent': g_req_mask_percent,
-                'g_rel_inc_fin': g_rel_inc_fin,
-                'preName_grad_init': preName_grad_init,
-                'preName_grad_fin': preName_grad_fin,
-                'preName_grad_visu_init': preName_grad_visu_init,
-                'preName_grad_visu_fin': preName_grad_visu_fin,
-                'com_og_rel_inc': com_og_rel_inc,
-                'com_og_req_dilate_iter': com_og_req_dilate_iter,
-                'com_og_req_mask_percent': com_og_req_mask_percent,
-                'com_og_rel_inc_fin': com_og_rel_inc_fin,
-                'preName_com_og_init': preName_com_og_init,
-                'preName_com_og_fin': preName_com_og_fin,
-                'preName_com_og_visu_init': preName_com_og_visu_init,
-                'preName_com_og_visu_fin': preName_com_og_visu_fin,
-                'neg_og_rel_inc': neg_og_rel_inc,
-                'neg_og_req_dilate_iter': neg_og_req_dilate_iter,
-                'neg_og_req_mask_percent': neg_og_req_mask_percent,
-                'neg_og_rel_inc_fin': neg_og_rel_inc_fin,
-                'preName_neg_og_init': preName_neg_og_init,
-                'preName_neg_og_fin': preName_neg_og_fin,
-                'preName_neg_og_visu_init': preName_neg_og_visu_init,
-                'preName_neg_og_visu_fin': preName_neg_og_visu_fin,
-                'neg_go_rel_inc': neg_go_rel_inc,
-                'neg_go_req_dilate_iter': neg_go_req_dilate_iter,
-                'neg_go_req_mask_percent': neg_go_req_mask_percent,
-                'neg_go_rel_inc_fin': neg_go_rel_inc_fin,
-                'preName_neg_go_init': preName_neg_go_init,
-                'preName_neg_go_fin': preName_neg_go_fin,
-                'preName_neg_go_visu_init': preName_neg_go_visu_init,
-                'preName_neg_go_visu_fin': preName_neg_go_visu_fin
-            }
+            if seperate == 1:
+                data = {
+                    'tStamp': tStamp,
+                    'seperate': seperate,
+                    'images': images,
+                    'mod_prob_s': mod_prob_s,
+                    'orig_prob_s': orig_prob_s,
+                    'class_index_s': class_index_s,
+                    'heat_mask_ratio': self.heat_mask_ratio,
+                    'combine_tech': combine_tech,
+                    'outputBlobName': outputBlobName,
+                    'outputLayerName': outputLayerName,
+                    'size_patch_s': size_patch_s,
+                    'dilate_iteration_s': dilate_iteration_s,
+                    'o_rel_inc': o_rel_inc,  ##
+                    'o_rel_inc_fin': o_rel_inc_fin,  ##
+                    'o_req_mask_percent': o_req_mask_percent,  ##
+                    'o_req_dilate_iter': o_req_dilate_iter,  ##
+                    'preName_occ_init': preName_occ_init,
+                    'preName_occ_fin': preName_occ_fin,
+                    'preName_occ_visu_init': preName_occ_visu_init,
+                    'preName_occ_visu_fin': preName_occ_visu_fin,
+                    'g_rel_inc': g_rel_inc,
+                    'g_req_dilate_iter': g_req_dilate_iter,
+                    'g_req_mask_percent': g_req_mask_percent,
+                    'g_rel_inc_fin': g_rel_inc_fin,
+                    'preName_grad_init': preName_grad_init,
+                    'preName_grad_fin': preName_grad_fin,
+                    'preName_grad_visu_init': preName_grad_visu_init,
+                    'preName_grad_visu_fin': preName_grad_visu_fin,
+                    'e_rel_inc': e_rel_inc,
+                    'e_rel_inc_fin': e_rel_inc_fin,
+                    'e_req_mask_percent': e_req_mask_percent,
+                    'e_req_dilate_iter': e_req_dilate_iter,
+                    'preName_exci_init': preName_exci_init,
+                    'preName_exci_fin': preName_exci_fin,
+                    'preName_exci_visu_init': preName_exci_visu_init,
+                    'preName_exci_visu_fin': preName_exci_visu_fin,
+                }
 
-            image_list = [
-                preName_grad_init, preName_grad_fin, preName_grad_visu_init,
-                preName_grad_visu_fin
-            ]
-            #for i in image_list:
-            #    for j in i:
-            #        self.run.add_artifact(j)
+            else:
+                data = {
+                    'tStamp': tStamp,
+                    'seperate': seperate,
+                    'images': images,
+                    'mod_prob_s': mod_prob_s,
+                    'orig_prob_s': orig_prob_s,
+                    'class_index_s': class_index_s,
+                    'heat_mask_ratio': self.heat_mask_ratio,
+                    'combine_tech': combine_tech,
+                    'best_dilate': best_dilate,
+                    'best_patch': best_patch,
+                    'outputBlobName': outputBlobName,
+                    'outputLayerName': outputLayerName,
+                    'size_patch_s': size_patch_s,
+                    'dilate_iteration_s': dilate_iteration_s,
+                    'com_og_rel_inc': com_og_rel_inc,
+                    'com_og_req_dilate_iter': com_og_req_dilate_iter,
+                    'com_og_req_mask_percent': com_og_req_mask_percent,
+                    'com_og_rel_inc_fin': com_og_rel_inc_fin,
+                    'preName_com_og_init': preName_com_og_init,
+                    'preName_com_og_fin': preName_com_og_fin,
+                    'preName_com_og_visu_init': preName_com_og_visu_init,
+                    'preName_com_og_visu_fin': preName_com_og_visu_fin,
+                    'com_oe_rel_inc': com_oe_rel_inc,
+                    'com_oe_req_dilate_iter': com_oe_req_dilate_iter,
+                    'com_oe_req_mask_percent': com_oe_req_mask_percent,
+                    'com_oe_rel_inc_fin': com_oe_rel_inc_fin,
+                    'preName_com_oe_init': preName_com_oe_init,
+                    'preName_com_oe_fin': preName_com_oe_fin,
+                    'preName_com_oe_visu_init': preName_com_oe_visu_init,
+                    'preName_com_oe_visu_fin': preName_com_oe_visu_fin,
+                    'com_ge_rel_inc': com_ge_rel_inc,
+                    'com_ge_req_dilate_iter': com_ge_req_dilate_iter,
+                    'com_ge_req_mask_percent': com_ge_req_mask_percent,
+                    'com_ge_rel_inc_fin': com_ge_rel_inc_fin,
+                    'preName_com_ge_init': preName_com_ge_init,
+                    'preName_com_ge_fin': preName_com_ge_fin,
+                    'preName_com_ge_visu_init': preName_com_ge_visu_init,
+                    'preName_com_ge_visu_fin': preName_com_ge_visu_fin,
+                }
 
-            #self.run.info[combine_tech] = data
+            #image_list = [
+            #    preName_grad_init, preName_grad_fin, preName_grad_visu_init,
+            #    preName_grad_visu_fin
+            #]
 
             directory = 'analysis/analysis_results_' + self.net
             if not os.path.exists(directory):
                 os.makedirs(directory)
 
             if self.save_data == 1:
-                with open(directory + '/analysis_results_' + part_name +
-                          '.pickle', 'w') as f:
+                with open(directory + '/' + 'seperate_' + str(seperate) +
+                          '_analysis_results_' + part_name + '.pickle',
+                          'w') as f:
                     pickle.dump([data], f)
+            data = []
 
         #import IPython
         #IPython.embed()
@@ -530,7 +595,6 @@ class AnalyseVisualizations(object):
         preName4 = []
         heat_mask_o_s = []
         config1 = []
-
         if config2 == None:
             config1 = config
             size_config = len(config)
@@ -545,13 +609,15 @@ class AnalyseVisualizations(object):
             req_percent = np.zeros(len(config) * len(config2))
             req_dilate_iter = np.zeros(len(config) * len(config2))
 
+        com_order = None
         for k in range(size_config):  #len(config1)):
-
             if tech_name[:3] == 'com':
                 #assert config2 != None
                 #assert raw_map2 != None
                 conf2_id = int(k % len(config2))
                 conf1_id = int(k / len(config2))
+                com_order_conf2 = config2[conf2_id]
+                com_order_conf1 = config[conf1_id]
                 if tech_name[4:-1] == 'inter':
                     #find intersection
                     heat_mask_o = h2._get_combined_heat_mask(
@@ -559,30 +625,14 @@ class AnalyseVisualizations(object):
                         'inter')
                     config1.append('--inter-' + tech1 + str(config[conf1_id]) +
                                    '_' + tech2 + str(config2[conf2_id]) + '--')
-                elif tech_name[4:-1] == 'neg':
-                    #find negation
-                    if tech_name[-1] == '1':
-                        # negate 1 with 2
-                        heat_mask_o = h2._get_combined_heat_mask(
-                            raw_map[conf1_id], raw_map2[conf2_id], mask_ratio,
-                            'neg')
-                        config1.append('--neg-' + tech1 + str(config[
-                            conf1_id]) + '_' + tech2 + str(config2[conf2_id]) +
-                                       '--')
-                    else:
-                        # negate 2 with 1
-                        heat_mask_o = h2._get_combined_heat_mask(
-                            raw_map2[conf2_id], raw_map[conf1_id], mask_ratio,
-                            'neg')
-                        config1.append('--neg-' + tech2 + str(config2[
-                            conf2_id]) + '_' + tech1 + str(config[conf1_id]) +
-                                       '--')
                 else:
                     print "not implemented"
                     assert 1 == 2
 
             else:
                 heat_mask_o = h2._get_mask_from_raw_map(raw_map[k], mask_ratio)
+                com_order_conf1 = None
+                com_order_conf2 = None
 
             heat_mask_o_s.append(heat_mask_o)
 
@@ -607,7 +657,6 @@ class AnalyseVisualizations(object):
             rel_inc_2[k] = 100 * (c_prob_fin - mod_prob) / (
                 orig_prob - mod_prob + 0.001)
 
-            #debug()
             if self.save_img == 1:
                 c_img_visu_init_o = h2._visu_heat_map(img.copy(), heat_mask_o)
                 c_img_visu_fin_o = h2._visu_heat_map(img.copy(),
@@ -635,7 +684,7 @@ class AnalyseVisualizations(object):
                         k]) + '-M-nSize-' + str(
                             self.netSize) + "-final" + part_name + ".png")
                 cv2.imwrite(preName4[-1], c_img_fin)
-        return preName1, preName2, preName3, preName4, rel_inc_1, rel_inc_2, req_percent, req_dilate_iter, heat_mask_o_s, c_prob_init, c_prob_fin
+        return preName1, preName2, preName3, preName4, rel_inc_1, rel_inc_2, req_percent, req_dilate_iter, heat_mask_o_s, c_prob_init, c_prob_fin, com_order_conf1, com_order_conf2
 
 
 def analyseNet(pretrainedSiameseModel,

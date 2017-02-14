@@ -1,0 +1,14 @@
+        com_oe_avg_rel_inc, com_oe_avg_rel_inc_fin, com_oe_avg_req_mask_percent, com_oe_avg_req_dilate_iter = sum_analysis(
+            com_oe_rel_inc, com_oe_rel_inc_fin, com_oe_req_mask_percent,
+            com_oe_req_dilate_iter, gd_imgs)
+        com_oe_per_area_fin = com_oe_avg_rel_inc_fin / com_oe_avg_req_mask_percent
+        #com_oe_best_id = com_oe_per_area_fin.argmax()
+        #com_oe_occ_id = com_oe_best_id % len(occ_config)
+        #com_oe_grad_id = com_oe_best_id / len(occ_config)
+        print 'com_oe_avg_rel_inc--------', com_oe_avg_rel_inc.astype(int)
+        #print 'com_oe_avg_rel_inc_fin----', com_oe_avg_rel_inc_fin.astype(int)
+        #print 'com_oe_avg_req_dilate_iter-', com_oe_avg_req_dilate_iter.astype(int)
+        #print 'com_oe_avg_req_mask_percent', com_oe_avg_req_mask_percent.astype(
+        #    int)
+        print 'AIM per area', com_oe_per_area_fin
+

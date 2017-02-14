@@ -10,12 +10,12 @@ from modifiedSiamese.analyse_vis import *
 #to visualize toggle train and visu
 #to test toggle only train
 #to save all the possible masks of visualization use visu_all_pos and visu
-v = 1
-net = "floor"
-#net = "places"
+v = 0
+#net = "floor"
+net = "places"
 tech = 'both'
-save_data = 0
-save_img = 1
+save_data = 1
+save_img = 0
 
 if v == 1:
     visu = 1
@@ -26,7 +26,7 @@ else:
     visu_all_pos = False
     analyse_all_visualizations = 1
 
-heat_mask_ratio = 0.25
+heat_mask_ratio = 0.05
 
 if net == "floor":
     netSize = 1000
@@ -45,6 +45,8 @@ if net == "floor":
     data_index = ''
     outputLayerName = 'pool2'
     outputBlobName = 'pool2'
+    #outputLayerName = 'conv2'
+    #outputBlobName = 'conv2'
     topBlobName = 'fc9_f'
     topLayerName = 'fc9_f'
     secondTopLayerName = 'fc8_s'
@@ -65,10 +67,10 @@ elif net == "places":
     final_layer = 'fc8'  #final_layer
     outputLayerName = 'pool2'
     outputBlobName = 'pool2'
-    topBlobName = 'fc9_f'
-    topLayerName = 'fc9_f'
-    secondTopLayerName = 'fc8_s'
-    secondTopBlobName = 'fc8_s_r'
+    topBlobName = 'fc8'
+    topLayerName = 'fc8'
+    secondTopLayerName = 'fc7'
+    secondTopBlobName = 'fc7'
 print heat_mask_ratio
 print fileName_test_visu
 #####################################################
