@@ -6,22 +6,68 @@ from os.path import isfile, join, splitext
 
 
 def validate(array, validity):
-    array1 = array * np.repeat(validity, array.shape[1], 1)
+    #mask = np.ones(array1.shape)
+    if validity.shape[1] == 1:
+        mask = np.repeat(validity, array.shape[1], 1)
+    else:
+        mask = validity
+
+    array1 = array * mask
+    mask[array1 < 0] = 0
     array1[array1 < 0] = 0
-    return array1
+    return array1, mask
+
+
+def get_SIG_AIG(rel_inc, rel_inc_fin, req_mask_percent, size_image, mod_prob_s,
+                orig_prob_s, gd_imgs, mask_percent):
+    debug()
+    gdmask = gd_imgs
+
+    rel_inc = validate(rel_inc, gd_imgs)
+    rel_inc_fin = validate(rel_inc_fin, gd_imgs)
+
+    a_rel_inc = orig_prob_s - mod_prob_s
+    a_rel_inc = validate(a_rel_inc, gd_imgs)
+
+    gdmask[a_rel_inc < 0.001] = 0
+    print "rejected", gdmask.shape[0] - gdmask.sum()
+
+    a_rel_inc = np.repeat(a_rel_inc, rel_inc.shape[1], 1)
+    gdmask = np.repeat(gdmask, rel_inc.shape[1], 1)
+
+    sig = gdmask * rel_inc / (a_rel_inc + 0.00001)
+    aig = sig * 100 / mask_percent
+    average_sig = sig.sum(axis=0) / gdmask.sum(axis=0)
+    average_aig = aig.sum(axis=0) / gdmask.sum(axis=0)
+
+    return sig, aig, average_sig, average_aig
 
 
 def sum_analysis(rel_inc, rel_inc_fin, req_mask_percent, req_dilate_iter,
                  gd_imgs):
-    rel_inc1 = validate(rel_inc, gd_imgs)
-    rel_inc_fin1 = validate(rel_inc_fin, gd_imgs)
-    req_mask_percent1 = validate(req_mask_percent, gd_imgs)
-    req_dilate_iter1 = validate(req_dilate_iter, gd_imgs)
+    rel_inc1, rel_inc1_mask = validate(rel_inc, gd_imgs)
 
-    avg_rel_inc = rel_inc1.sum(axis=0) / gd_imgs.sum(axis=0)
-    avg_rel_inc_fin = rel_inc_fin1.sum(axis=0) / gd_imgs.sum(axis=0)
-    avg_req_mask_percent = req_mask_percent1.sum(axis=0) / gd_imgs.sum(axis=0)
-    avg_req_dilate_iter = req_dilate_iter1.sum(axis=0) / gd_imgs.sum(axis=0)
+    #find final mask by combining iter and rel inc final
+    rel_inc_fin0, rel_inc_fin0_mask = validate(rel_inc_fin, gd_imgs)
+    req_dilate_iter1, req_dilate_iter1_mask = validate(req_dilate_iter,
+                                                       rel_inc_fin0_mask)
+
+    rel_inc_fin1, rel_inc_fin1_mask = validate(rel_inc_fin,
+                                               req_dilate_iter1_mask)
+    req_mask_percent1, req_mask_percent1_mask = validate(req_mask_percent,
+                                                         req_dilate_iter1_mask)
+
+    #avg_rel_inc = rel_inc1.sum(axis=0) / gd_imgs.sum(axis=0)
+    #avg_rel_inc_fin = rel_inc_fin1.sum(axis=0) / gd_imgs.sum(axis=0)
+    #avg_req_mask_percent = req_mask_percent1.sum(axis=0) / gd_imgs.sum(axis=0)
+    #avg_req_dilate_iter = req_dilate_iter1.sum(axis=0) / gd_imgs.sum(axis=0)
+
+    avg_rel_inc = rel_inc1.sum(axis=0) / rel_inc1_mask.sum(axis=0)
+    avg_rel_inc_fin = rel_inc_fin1.sum(axis=0) / rel_inc_fin1_mask.sum(axis=0)
+    avg_req_mask_percent = req_mask_percent1.sum(
+        axis=0) / req_mask_percent1_mask.sum(axis=0)
+    avg_req_dilate_iter = req_dilate_iter1.sum(
+        axis=0) / req_dilate_iter1_mask.sum(axis=0)
 
     return avg_rel_inc, avg_rel_inc_fin, avg_req_mask_percent, avg_req_dilate_iter
 
@@ -29,12 +75,12 @@ def sum_analysis(rel_inc, rel_inc_fin, req_mask_percent, req_dilate_iter,
 #analyse_dir = 'analysis/analysis_results_floor/'
 
 analyse_dir = 'analysis/ana_floor_now/'
-#analyse_dir = 'analysis/ana_places_now/'
+#analyse_dir = 'analysis/ana_places_now1/'
 
 #analyse_dir = 'analysis/analysis_results_floor_seperate_final/'
 #analyse_dir = 'analysis/analysis_results_places_seperate_final/'
 
-seperate_scr = 0
+seperate_scr = 1
 
 # load list of all pickel files
 visu_file_s = [
@@ -63,6 +109,7 @@ for i in range(len(visu_file_s)):
     diff = orig_prob_s - mod_prob_s
     gd_imgs = np.zeros(diff.shape)
     gd_imgs[diff > 0] = 1
+    size_image = 0  #doesnt matter
     print 'seperate', seperate
     if seperate == 0:
         print 'best_dilate', best_dilate,
@@ -80,6 +127,9 @@ for i in range(len(visu_file_s)):
         o_per_area_fin = o_avg_rel_inc_fin / o_avg_req_mask_percent
         o_best_id = o_per_area_fin.argmax()
         o_best_id1 = o_avg_rel_inc.argmax()
+
+        #TODO do negative ignoring
+
         print 'o_avg_rel_inc--------', o_avg_rel_inc.astype(int)
         print "occ c1", occ_config[o_best_id1]
         #print 'o_avg_rel_inc_fin----', o_avg_rel_inc_fin.astype(int)
@@ -158,8 +208,6 @@ for i in range(len(visu_file_s)):
         #print 'com_oe_avg_req_mask_percent', com_oe_avg_req_mask_percent.astype(
         #    int)
         print 'AIM per area', com_oe_per_area_fin
-
     print '-----'
-
     print '-----'
 print "done"
