@@ -3,9 +3,10 @@ import numpy as np
 from ipdb import set_trace as debug
 from os import listdir
 from os.path import isfile, join, splitext
+import matplotlib.pyplot as plt
 
 
-def validate(array, validity):
+def validate(array, validity, thres=0):
     #mask = np.ones(array1.shape)
     if validity.shape[1] == 1:
         mask = np.repeat(validity, array.shape[1], 1)
@@ -13,34 +14,17 @@ def validate(array, validity):
         mask = validity
 
     array1 = array * mask
-    mask[array1 < 0] = 0
-    array1[array1 < 0] = 0
+    mask[array1 < thres] = 0
+    array1[array1 < thres] = 0
     return array1, mask
 
 
-def get_SIG_AIG(rel_inc, rel_inc_fin, req_mask_percent, size_image, mod_prob_s,
-                orig_prob_s, gd_imgs, mask_percent):
-    debug()
-    gdmask = gd_imgs
+def find_mask_aig(rel_inc_fin, req_dilate_iter, gd_imgs):
 
-    rel_inc = validate(rel_inc, gd_imgs)
-    rel_inc_fin = validate(rel_inc_fin, gd_imgs)
-
-    a_rel_inc = orig_prob_s - mod_prob_s
-    a_rel_inc = validate(a_rel_inc, gd_imgs)
-
-    gdmask[a_rel_inc < 0.001] = 0
-    print "rejected", gdmask.shape[0] - gdmask.sum()
-
-    a_rel_inc = np.repeat(a_rel_inc, rel_inc.shape[1], 1)
-    gdmask = np.repeat(gdmask, rel_inc.shape[1], 1)
-
-    sig = gdmask * rel_inc / (a_rel_inc + 0.00001)
-    aig = sig * 100 / mask_percent
-    average_sig = sig.sum(axis=0) / gdmask.sum(axis=0)
-    average_aig = aig.sum(axis=0) / gdmask.sum(axis=0)
-
-    return sig, aig, average_sig, average_aig
+    rel_inc_fin0, rel_inc_fin0_mask = validate(rel_inc_fin, gd_imgs)
+    rel_inc_fin0_mask[req_dilate_iter < 0] = 0
+    rel_inc_fin0_mask[req_dilate_iter > 100] = 0
+    return rel_inc_fin0_mask
 
 
 def sum_analysis(rel_inc, rel_inc_fin, req_mask_percent, req_dilate_iter,
@@ -48,19 +32,12 @@ def sum_analysis(rel_inc, rel_inc_fin, req_mask_percent, req_dilate_iter,
     rel_inc1, rel_inc1_mask = validate(rel_inc, gd_imgs)
 
     #find final mask by combining iter and rel inc final
-    rel_inc_fin0, rel_inc_fin0_mask = validate(rel_inc_fin, gd_imgs)
+    AIG_mask = find_mask_aig(rel_inc_fin, req_dilate_iter, gd_imgs)
     req_dilate_iter1, req_dilate_iter1_mask = validate(req_dilate_iter,
-                                                       rel_inc_fin0_mask)
-
-    rel_inc_fin1, rel_inc_fin1_mask = validate(rel_inc_fin,
-                                               req_dilate_iter1_mask)
+                                                       AIG_mask)
+    rel_inc_fin1, rel_inc_fin1_mask = validate(rel_inc_fin, AIG_mask)
     req_mask_percent1, req_mask_percent1_mask = validate(req_mask_percent,
-                                                         req_dilate_iter1_mask)
-
-    #avg_rel_inc = rel_inc1.sum(axis=0) / gd_imgs.sum(axis=0)
-    #avg_rel_inc_fin = rel_inc_fin1.sum(axis=0) / gd_imgs.sum(axis=0)
-    #avg_req_mask_percent = req_mask_percent1.sum(axis=0) / gd_imgs.sum(axis=0)
-    #avg_req_dilate_iter = req_dilate_iter1.sum(axis=0) / gd_imgs.sum(axis=0)
+                                                         AIG_mask)
 
     avg_rel_inc = rel_inc1.sum(axis=0) / rel_inc1_mask.sum(axis=0)
     avg_rel_inc_fin = rel_inc_fin1.sum(axis=0) / rel_inc_fin1_mask.sum(axis=0)
@@ -69,18 +46,24 @@ def sum_analysis(rel_inc, rel_inc_fin, req_mask_percent, req_dilate_iter,
     avg_req_dilate_iter = req_dilate_iter1.sum(
         axis=0) / req_dilate_iter1_mask.sum(axis=0)
 
+    per_area_fin = avg_rel_inc_fin / avg_req_mask_percent
+    #print 'o_avg_rel_inc--------', avg_rel_inc.astype(int)
+    #print 'AIM per area', per_area_fin
+
+    #debug()
+
     return avg_rel_inc, avg_rel_inc_fin, avg_req_mask_percent, avg_req_dilate_iter
 
 #analyse_dir = 'analysis/analysis_results_places/'
 #analyse_dir = 'analysis/analysis_results_floor/'
 
-analyse_dir = 'analysis/ana_floor_now/'
+#analyse_dir = 'analysis/ana_floor_now/'
 #analyse_dir = 'analysis/ana_places_now1/'
 
-#analyse_dir = 'analysis/analysis_results_floor_seperate_final/'
-#analyse_dir = 'analysis/analysis_results_places_seperate_final/'
+#analyse_dir = 'analysis/analysis_results_floor/'
+analyse_dir = 'analysis/analysis_results_places/'
 
-seperate_scr = 1
+seperate_scr = 0
 
 # load list of all pickel files
 visu_file_s = [
@@ -137,7 +120,6 @@ for i in range(len(visu_file_s)):
         #print 'o_avg_req_mask_percent', o_avg_req_mask_percent.astype(int)
         print 'AIM per area', o_per_area_fin
         print "occ", occ_config[o_best_id]
-        print '-----'
 
         g_avg_rel_inc, g_avg_rel_inc_fin, g_avg_req_mask_percent, g_avg_req_dilate_iter = sum_analysis(
             g_rel_inc, g_rel_inc_fin, g_req_mask_percent, g_req_dilate_iter,
@@ -152,7 +134,6 @@ for i in range(len(visu_file_s)):
         #print 'g_avg_req_mask_percent', g_avg_req_mask_percent.astype(int)
         print 'AIM per area', g_per_area_fin
         print "grad", grad_config[g_best_id]
-        print '-----'
 
         e_avg_rel_inc, e_avg_rel_inc_fin, e_avg_req_mask_percent, e_avg_req_dilate_iter = sum_analysis(
             e_rel_inc, e_rel_inc_fin, e_req_mask_percent, e_req_dilate_iter,
@@ -179,7 +160,6 @@ for i in range(len(visu_file_s)):
         #    int)
         print 'AIM per area', com_og_per_area_fin
 
-        print '-----'
         com_ge_avg_rel_inc, com_ge_avg_rel_inc_fin, com_ge_avg_req_mask_percent, com_ge_avg_req_dilate_iter = sum_analysis(
             com_ge_rel_inc, com_ge_rel_inc_fin, com_ge_req_mask_percent,
             com_ge_req_dilate_iter, gd_imgs)
