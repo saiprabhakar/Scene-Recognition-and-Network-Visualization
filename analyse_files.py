@@ -63,7 +63,7 @@ def sum_analysis(rel_inc, rel_inc_fin, req_mask_percent, req_dilate_iter,
 #analyse_dir = 'analysis/analysis_results_floor/'
 analyse_dir = 'analysis/analysis_results_places/'
 
-seperate_scr = 0
+seperate_scr = -1  #0
 
 # load list of all pickel files
 visu_file_s = [
@@ -76,7 +76,12 @@ exci_config = [1]
 visu_file_s_o = visu_file_s
 visu_file_s = []
 for i in range(len(visu_file_s_o)):
-    if int(visu_file_s_o[i][9]) == seperate_scr:
+    if visu_file_s_o[i][9] == '-':
+        spe_file_value = int(visu_file_s_o[i][9:11])
+    else:
+        spe_file_value = int(visu_file_s_o[i][9])
+
+    if spe_file_value == seperate_scr:
         visu_file_s.append(visu_file_s_o[i])
 
 for i in range(len(visu_file_s)):
@@ -145,6 +150,17 @@ for i in range(len(visu_file_s)):
         #print 'e_avg_req_mask_percent', e_avg_req_mask_percent.astype(int)
         print 'AIM per area', e_per_area_fin
         print '-----'
+    elif seperate_scr == -1:
+        com_oge_avg_rel_inc, com_oge_avg_rel_inc_fin, com_oge_avg_req_mask_percent, com_oge_avg_req_dilate_iter = sum_analysis(
+            com_oge_rel_inc, com_oge_rel_inc_fin, com_oge_req_mask_percent,
+            com_oge_req_dilate_iter, gd_imgs)
+        com_oge_per_area_fin = com_oge_avg_rel_inc_fin / com_oge_avg_req_mask_percent
+        com_oge_best_id = com_oge_per_area_fin.argmax()
+        com_oge_best_id1 = com_oge_avg_rel_inc.argmax()
+
+        print 'com_oge_avg_rel_inc--------', com_oge_avg_rel_inc.astype(int)
+        print 'AIM per area', com_oge_per_area_fin
+
     elif seperate_scr == 0:
         com_og_avg_rel_inc, com_og_avg_rel_inc_fin, com_og_avg_req_mask_percent, com_og_avg_req_dilate_iter = sum_analysis(
             com_og_rel_inc, com_og_rel_inc_fin, com_og_req_mask_percent,

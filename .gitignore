@@ -8,6 +8,7 @@ pythonCaffeLayers1/*
 papers/*
 savedModels/*
 todelete/*
+paper_imgs/*
 
 *.caffemodel
 *.binaryproto

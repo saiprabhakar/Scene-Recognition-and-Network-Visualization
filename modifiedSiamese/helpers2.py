@@ -98,6 +98,19 @@ def _get_mask_from_raw_map(raw_map, ratio):
     return heat_map
 
 
+def _get_combined_heat_mask_3(raw_map1, raw_map2, raw_map3, mask_ratio, tech):
+    hm1 = _get_mask_from_raw_map(raw_map1, mask_ratio)
+    hm2 = _get_mask_from_raw_map(raw_map2, mask_ratio)
+    hm3 = _get_mask_from_raw_map(raw_map3, mask_ratio)
+    if tech == 'inter':
+        hm_i = (hm1.astype(bool) & hm2.astype(bool)).astype(float)
+        hm = (hm_i.astype(bool) & hm3.astype(bool)).astype(float)
+    else:
+        print "not implemented"
+        assert 1 == 2
+    return hm
+
+
 def _get_combined_heat_mask(raw_map1, raw_map2, mask_ratio, tech):
     hm1 = _get_mask_from_raw_map(raw_map1, mask_ratio)
     hm2 = _get_mask_from_raw_map(raw_map2, mask_ratio)

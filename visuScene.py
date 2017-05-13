@@ -5,17 +5,16 @@
 # --------------------------------------------------------
 
 from modifiedSiamese.SiameseTrainer import *
-from modifiedSiamese.analyse_vis import *
+'''
+Script to generate visualization using a specif tech (this is a compressed version of visuModel.py)
+'''
 
-#to visualize toggle train and visu
-#to test toggle only train
-#to save all the possible masks of visualization use visu_all_pos and visu
-v = 0
+v = 1
 #net = "floor"
 net = "places"
 tech = 'both'
 save_data = 1
-save_img = 0
+save_img = 1
 
 if v == 1:
     visu = 1
@@ -84,8 +83,8 @@ train = 0
 
 # mkdir <net>_NetResults_visu_grad/occ
 #save dir is used by cam too
-visu_all_save_dir = "visu/" + net + '_NetResults_visu' + data_index
-visu_all_analyse_dir = 'visu/' + net + '_NetResults_visu' + data_index + '/'
+visu_all_save_dir = "visu/" + net + '_NetResults_visu_n_' + data_index
+visu_all_analyse_dir = 'visu/' + net + '_NetResults_visu_n_' + data_index + '/'
 #visu_all_analyse_dir = 'visu/' + net + '_NetResults_visu_back/'
 
 testProto1 = None
@@ -101,64 +100,40 @@ if visu == 1:
         testProto1 = test_prototxt1
         compare = 1
     size_patch_s = [10, 50, 100]
-    dilate_iteration_s = [0, 2, 5]
-    tech = ['occ', 'grad', 'exci']
-elif analyse_all_visualizations == 1:
-    # loading test prototype for analysis
-    pretrainedSiameseModel = trainedModel
-    testProto = test_prototxt0
+    dilate_iteration_s = [0]
+    tech = ['grad']  #, 'exci']
 _run = []
 
-if analyse_all_visualizations == 1:
-    analyseNet(
-        pretrainedSiameseModel=pretrainedSiameseModel,
-        testProto=testProto,
-        analyse_all_visualizations=analyse_all_visualizations,
-        visu_all_analyse_dir=visu_all_analyse_dir,
-        fileName_test_visu=fileName_test_visu,
-        viz_tech=tech,
-        meanfile=meanfile,
-        netSize=netSize,
-        class_size=class_size,
-        class_adju=class_adju,
-        heat_mask_ratio=heat_mask_ratio,
-        im_target_size=im_target_size,
-        final_layer=final_layer,
-        net=net,
-        save_img=save_img,
-        save_data=save_data,
-        data_folder=data_folder)
-elif visu == 1:
-    siameseTrainer(
-        siameseSolver=siameseSolver,
-        pretrainedSiameseModel=pretrainedSiameseModel,
-        fileName_test_visu=fileName_test_visu,
-        pretrained_model=pretrained_model,
-        pretrained_model_proto=pretrained_model_proto,
-        testProto=testProto,
-        testProto1=testProto1,
-        compare=compare,
-        im_target_size=im_target_size,
-        train=train,
-        visu=visu,
-        visu_all=visu_all_pos,
-        heat_mask_ratio=heat_mask_ratio,
-        visu_all_save_dir=visu_all_save_dir,
-        viz_tech=tech,
-        meanfile=meanfile,
-        net=net,
-        final_layer=final_layer,
-        data_folder=data_folder,
-        class_size=class_size,
-        class_adju=class_adju,
-        save=save_data,
-        save_img=save_img,
-        netSize=netSize,
-        outputLayerName=outputLayerName,
-        outputBlobName=outputBlobName,
-        topLayerName=topLayerName,
-        topBlobName=topBlobName,
-        secondTopLayerName=secondTopLayerName,
-        secondTopBlobName=secondTopBlobName,
-        dilate_iteration_s=dilate_iteration_s,
-        size_patch_s=size_patch_s)
+siameseTrainer(
+    siameseSolver=siameseSolver,
+    pretrainedSiameseModel=pretrainedSiameseModel,
+    fileName_test_visu=fileName_test_visu,
+    pretrained_model=pretrained_model,
+    pretrained_model_proto=pretrained_model_proto,
+    testProto=testProto,
+    testProto1=testProto1,
+    compare=compare,
+    im_target_size=im_target_size,
+    train=train,
+    visu=visu,
+    visu_all=visu_all_pos,
+    heat_mask_ratio=heat_mask_ratio,
+    visu_all_save_dir=visu_all_save_dir,
+    viz_tech=tech,
+    meanfile=meanfile,
+    net=net,
+    final_layer=final_layer,
+    data_folder=data_folder,
+    class_size=class_size,
+    class_adju=class_adju,
+    save=save_data,
+    save_img=save_img,
+    netSize=netSize,
+    outputLayerName=outputLayerName,
+    outputBlobName=outputBlobName,
+    topLayerName=topLayerName,
+    topBlobName=topBlobName,
+    secondTopLayerName=secondTopLayerName,
+    secondTopBlobName=secondTopBlobName,
+    dilate_iteration_s=dilate_iteration_s,
+    size_patch_s=size_patch_s)

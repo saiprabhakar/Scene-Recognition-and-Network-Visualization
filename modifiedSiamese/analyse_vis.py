@@ -67,7 +67,7 @@ class AnalyseVisualizations(object):
     def analyse_visualizations(self, database_fileName, visu_all_analyse_dir):
         """Analysing visualizations saved in the files
         """
-        seperate = 0
+        seperate = -1  #0
         tStamp = '-Timestamp-{:%Y-%m-%d-%H:%M:%S}'.format(
             datetime.datetime.now())
         tStamp = ''
@@ -142,7 +142,7 @@ class AnalyseVisualizations(object):
                 preName_grad_init = []
                 preName_grad_fin = []
 
-            else:
+            elif seperate == 0:
                 part_name = '_' + self.net + '_' + "thres" + str(
                     int(100 * self.heat_mask_ratio)) + '-' + str(
                         combine_tech) + "-" + tStamp + visu_all_analyse_dir[-2:
@@ -187,6 +187,33 @@ class AnalyseVisualizations(object):
                 preName_com_oe_visu_fin = []
                 preName_com_oe_init = []
                 preName_com_oe_fin = []
+            elif seperate == -1:
+                #combine all three
+                part_name = '_' + self.net + '_' + "thres" + str(
+                    int(100 * self.heat_mask_ratio)) + '-' + str(
+                        combine_tech) + "-" + tStamp + visu_all_analyse_dir[-2:
+                                                                            -1]
+                print part_name
+                images = []
+                class_index_s = []
+
+                mod_prob_s = np.zeros((len(visu_file_s), 1))
+                orig_prob_s = np.zeros((len(visu_file_s), 1))
+                less_per = np.zeros((len(visu_file_s), 1))
+
+                com_oge_prob = np.zeros((len(visu_file_s), 1))
+                com_oge_prob_fin = np.zeros((len(visu_file_s), 1))
+                com_oge_req_dilate_iter = np.zeros((len(visu_file_s), 1)) - 2
+                com_oge_req_mask_percent = np.zeros((len(visu_file_s), 1))
+                com_oge_rel_inc = np.zeros((len(visu_file_s), 1))
+                com_oge_rel_inc_fin = np.zeros((len(visu_file_s), 1))
+                preName_com_oge_visu_init = []
+                preName_com_oge_visu_fin = []
+                preName_com_oge_init = []
+                preName_com_oge_fin = []
+            else:
+                print "not implemented"
+                assert 1 == 2
             # for all files
             for i in range(len(visu_file_s)):
                 visu_file = visu_all_analyse_dir + visu_file_s[i]
@@ -222,8 +249,12 @@ class AnalyseVisualizations(object):
                                                                   class_index)
                 elif combine_tech == "black":
                     mod_img = np.zeros(img.shape)
-                    mod_prob = 0.0
-                    all_prob = np.array([0, 0])
+                    mod_blob = h2._get_image_blob_from_image(
+                        mod_img, self.meanarr, self.im_target_size)
+                    mod_prob, all_prob = self.get_prediction_prob(mod_blob,
+                                                                  class_index)
+                    #mod_prob = 0.0
+                    #all_prob = np.array([0, 0])
                 else:
                     print "not implemented"
                     assert 1 == 2
@@ -327,7 +358,7 @@ class AnalyseVisualizations(object):
                         e_rel_inc_fin[i, :] = rel_inc_2
                         e_req_mask_percent[i, :] = req_percent
                         e_req_dilate_iter[i, :] = req_dilate_iter
-                    else:  # seperate == 0:
+                    elif seperate == 0:
                         #intersection of occlusion and gradients
                         #tech_name = 'com_inter_'
                         best_dilate = 2  #5 thres 25
@@ -426,6 +457,49 @@ class AnalyseVisualizations(object):
                         com_ge_rel_inc_fin[i, :] = rel_inc_2
                         com_ge_req_mask_percent[i, :] = req_percent
                         com_ge_req_dilate_iter[i, :] = req_dilate_iter
+                    elif seperate == -1:
+                        #intersection of occlusion, gradients and excitation BP
+                        best_dilate = 2  #5 thres 25
+                        best_patch = 0  #10 thres 25
+                        dilate_iteration_s = np.array(
+                            [dilate_iteration_s[best_dilate]])
+                        size_patch_s = np.array([size_patch_s[best_patch]])
+                        heat_map_raw_grad_s = np.array(
+                            [heat_map_raw_grad_s[best_dilate]])
+                        heat_map_raw_occ_s = np.array(
+                            [heat_map_raw_occ_s[best_patch]])
+
+                        preName1, preName2, preName3, preName4, rel_inc_1, rel_inc_2, req_percent, req_dilate_iter, heat_mask, prob_init, prob_fin, com_order_conf1, com_order_conf2 = self.find_mask_confidence_analysis(
+                            config=dilate_iteration_s,
+                            raw_map=heat_map_raw_grad_s,
+                            mask_ratio=self.heat_mask_ratio,
+                            img=img,
+                            mod_img=mod_img,
+                            im_name=im_name,
+                            class_index=class_index,
+                            orig_prob=orig_prob,
+                            mod_prob=mod_prob,
+                            part_name=part_name,
+                            tech_name='com_inter_3',
+                            config2=size_patch_s,
+                            raw_map2=heat_map_raw_occ_s,
+                            tech1='grad',
+                            tech2='occ',
+                            tech3='exci',
+                            raw_map3=heat_map_raw_exci_s)
+
+                        heat_mask_com_oge_s = heat_mask
+                        preName_com_oge_visu_init += preName1
+                        preName_com_oge_visu_fin += preName2
+                        preName_com_oge_init += preName3
+                        preName_com_oge_fin += preName4
+                        com_oge_prob[i, :] = prob_init
+                        com_oge_prob_fin[i, :] = prob_fin
+                        com_oge_rel_inc[i, :] = rel_inc_1
+                        com_oge_rel_inc_fin[i, :] = rel_inc_2
+                        com_oge_req_mask_percent[i, :] = req_percent
+                        com_oge_req_dilate_iter[i, :] = req_dilate_iter
+
                 else:
                     less_per[i] = 1
 
@@ -462,6 +536,12 @@ class AnalyseVisualizations(object):
                     'outputLayerName': outputLayerName,
                     'size_patch_s': size_patch_s,
                     'dilate_iteration_s': dilate_iteration_s,
+                    'o_prob': o_prob,
+                    'o_prob_fin': o_prob_fin,
+                    'g_prob': g_prob,
+                    'g_prob_fin': g_prob_fin,
+                    'e_prob': e_prob,
+                    'e_prob_fin': e_prob_fin,
                     'o_rel_inc': o_rel_inc,  ##
                     'o_rel_inc_fin': o_rel_inc_fin,  ##
                     'o_req_mask_percent': o_req_mask_percent,  ##
@@ -488,7 +568,7 @@ class AnalyseVisualizations(object):
                     'preName_exci_visu_fin': preName_exci_visu_fin,
                 }
 
-            else:
+            elif seperate == 0:
                 data = {
                     'tStamp': tStamp,
                     'seperate': seperate,
@@ -528,6 +608,31 @@ class AnalyseVisualizations(object):
                     'preName_com_ge_fin': preName_com_ge_fin,
                     'preName_com_ge_visu_init': preName_com_ge_visu_init,
                     'preName_com_ge_visu_fin': preName_com_ge_visu_fin,
+                }
+            elif seperate == -1:
+                data = {
+                    'tStamp': tStamp,
+                    'seperate': seperate,
+                    'images': images,
+                    'mod_prob_s': mod_prob_s,
+                    'orig_prob_s': orig_prob_s,
+                    'class_index_s': class_index_s,
+                    'heat_mask_ratio': self.heat_mask_ratio,
+                    'combine_tech': combine_tech,
+                    'best_dilate': best_dilate,
+                    'best_patch': best_patch,
+                    'outputBlobName': outputBlobName,
+                    'outputLayerName': outputLayerName,
+                    'size_patch_s': size_patch_s,
+                    'dilate_iteration_s': dilate_iteration_s,
+                    'com_oge_rel_inc': com_oge_rel_inc,
+                    'com_oge_req_dilate_iter': com_oge_req_dilate_iter,
+                    'com_oge_req_mask_percent': com_oge_req_mask_percent,
+                    'com_oge_rel_inc_fin': com_oge_rel_inc_fin,
+                    'preName_com_oge_init': preName_com_oge_init,
+                    'preName_com_oge_fin': preName_com_oge_fin,
+                    'preName_com_oge_visu_init': preName_com_oge_visu_init,
+                    'preName_com_oge_visu_fin': preName_com_oge_visu_fin,
                 }
 
             #image_list = [
@@ -585,10 +690,24 @@ class AnalyseVisualizations(object):
         prob1 = h2._get_prob(p, class_index_n)
         return prob1, p
 
-    def find_mask_confidence_analysis(self, config, raw_map, mask_ratio, img,
-                                      mod_img, im_name, class_index, orig_prob,
-                                      mod_prob, part_name, tech_name, config2,
-                                      raw_map2, tech1, tech2):
+    def find_mask_confidence_analysis(self,
+                                      config,
+                                      raw_map,
+                                      mask_ratio,
+                                      img,
+                                      mod_img,
+                                      im_name,
+                                      class_index,
+                                      orig_prob,
+                                      mod_prob,
+                                      part_name,
+                                      tech_name,
+                                      config2,
+                                      raw_map2,
+                                      tech1,
+                                      tech2,
+                                      tech3='',
+                                      raw_map3=[]):
         preName1 = []
         preName2 = []
         preName3 = []
@@ -618,13 +737,22 @@ class AnalyseVisualizations(object):
                 conf1_id = int(k / len(config2))
                 com_order_conf2 = config2[conf2_id]
                 com_order_conf1 = config[conf1_id]
-                if tech_name[4:-1] == 'inter':
+                if tech_name[4:9] == 'inter':
                     #find intersection
-                    heat_mask_o = h2._get_combined_heat_mask(
-                        raw_map[conf1_id], raw_map2[conf2_id], mask_ratio,
-                        'inter')
-                    config1.append('--inter-' + tech1 + str(config[conf1_id]) +
-                                   '_' + tech2 + str(config2[conf2_id]) + '--')
+                    if tech_name[-1] == '3':
+                        heat_mask_o = h2._get_combined_heat_mask_3(
+                            raw_map[conf1_id], raw_map2[conf2_id], raw_map3[0],
+                            mask_ratio, 'inter')
+                        config1.append('--inter-' + tech1 + str(config[
+                            conf1_id]) + '_' + tech2 + str(config2[conf2_id]) +
+                                       '_' + tech3 + '--')
+                    else:
+                        heat_mask_o = h2._get_combined_heat_mask(
+                            raw_map[conf1_id], raw_map2[conf2_id], mask_ratio,
+                            'inter')
+                        config1.append('--inter-' + tech1 + str(config[
+                            conf1_id]) + '_' + tech2 + str(config2[conf2_id]) +
+                                       '--')
                 else:
                     print "not implemented"
                     assert 1 == 2

@@ -75,16 +75,9 @@ class SiameseTrainWrapper(object):
         elif visu == 1:
             assert testProto != None
             assert pretrainedSiameseModel != None
-            if self.viz_tech == 'occ' or self.viz_tech == 'both':
-                self.siameseTestNet = caffe.Net(
-                    testProto, pretrainedSiameseModel, caffe.TEST)
-            if self.viz_tech == 'grad':
-                self.siameseTestNet_grad = caffe.Net(
-                    testProto, pretrainedSiameseModel, caffe.TEST)
-            if self.viz_tech == 'both':
-                assert testProto1 != None
-                self.siameseTestNet_grad = caffe.Net(
-                    testProto1, pretrainedSiameseModel, caffe.TEST)
+            self.siameseTestNet = caffe.Net(testProto, pretrainedSiameseModel,
+                                            caffe.TEST)
+
         else:
             assert testProto != None
             assert pretrainedSiameseModel != None
@@ -355,7 +348,7 @@ class SiameseTrainWrapper(object):
     def visualize_all(self, fileName, tech, compare, visu_all_save_dir, save,
                       outputLayerName, outputBlobName, topLayerName,
                       topBlobName, secondTopLayerName, secondTopBlobName,
-                      save_img):
+                      save_img, size_patch_s, dilate_iteration_s):
         ''' Visualizing all and saving
         '''
         #tStamp = '-Timestamp-{:%Y-%m-%d-%H:%M:%S}'.format(
@@ -375,10 +368,9 @@ class SiameseTrainWrapper(object):
         heat_map_grad_s = {}
         heat_map_raw_grad_s = {}
 
-        size_patch_s = [10, 50, 100]
-        dilate_iteration_s = [0, 2, 5]
-        #tech_s = ['occ', 'grad']
-        tech_s = ['occ', 'grad', 'exci']
+        #size_patch_s = [10, 50, 100]
+        #dilate_iteration_s = [0, 2, 5]
+        tech_s = tech  #['occ', 'grad', 'exci']
         #tech_s = ['exci']
         print outputLayerName, outputBlobName
         for i in lines:
@@ -475,7 +467,8 @@ class SiameseTrainWrapper(object):
                                  heat_map_raw_grad_s, heat_map_raw_exci_s], f)
 
     def visualize(self, fileName, tech, compare):
-        ''' Visualizing using gray occlusion patches or gradients of input image
+        ''' Visualizing using gray occlusion patches or gradients of input image.
+        This function could be out of date. Use visualize_all method instead.
         '''
         #tStamp = '-Timestamp-{:%Y-%m-%d-%H:%M:%S}'.format(
         #    datetime.datetime.now())
@@ -713,10 +706,10 @@ class SiameseTrainWrapper(object):
         caffeLabel = np.zeros((1, self.class_size))
         caffeLabel[0, label_index] = 1
 
-        pred = self.siameseTestNet_grad.forward(data=blobs['data'].astype(
+        pred = self.siameseTestNet.forward(data=blobs['data'].astype(
             np.float32, copy=True))
-        bw = self.siameseTestNet_grad.backward(
-            **{self.siameseTestNet_grad.outputs[0]: caffeLabel})  #
+        bw = self.siameseTestNet.backward(
+            **{self.siameseTestNet.outputs[0]: caffeLabel})  #
         diff = bw['data'].copy()
 
         # Find the saliency map as described in the paper. Normalize the map and assign it to variabe "saliency"
@@ -748,36 +741,15 @@ class SiameseTrainWrapper(object):
         return im.astype(np.uint8), heat_map.astype(np.uint8), heat_map_raw
 
 
-def siameseTrainer(siameseSolver,
-                   fileName_test_visu,
-                   pretrained_model,
-                   pretrainedSiameseModel,
-                   testProto,
-                   pretrained_model_proto,
-                   train,
-                   visu,
-                   testProto1,
-                   viz_tech,
-                   visu_all,
-                   visu_all_save_dir,
-                   compare,
-                   data_folder,
-                   heat_mask_ratio,
-                   final_layer,
-                   net,
-                   im_target_size,
-                   class_size,
-                   class_adju,
-                   meanfile,
-                   netSize,
-                   save,
-                   save_img,
-                   outputLayerName,
-                   outputBlobName,
-                   topLayerName,
-                   topBlobName,
-                   secondTopLayerName,
-                   secondTopBlobName, ):
+def siameseTrainer(siameseSolver, fileName_test_visu, pretrained_model,
+                   pretrainedSiameseModel, testProto, pretrained_model_proto,
+                   train, visu, testProto1, viz_tech, visu_all,
+                   visu_all_save_dir, compare, data_folder, heat_mask_ratio,
+                   final_layer, net, im_target_size, class_size, class_adju,
+                   meanfile, netSize, save, save_img, outputLayerName,
+                   outputBlobName, topLayerName, topBlobName,
+                   secondTopLayerName, secondTopBlobName, dilate_iteration_s,
+                   size_patch_s):
     sw = SiameseTrainWrapper(
         solver_prototxt=siameseSolver,
         pretrainedSiameseModel=pretrainedSiameseModel,
@@ -806,6 +778,9 @@ def siameseTrainer(siameseSolver,
             sw.visualize(fileName_test_visu, tech=viz_tech, compare=compare)
         else:
             print 'visalizing all possible ', pretrainedSiameseModel
+            #size_patch_s = [10, 50, 100]
+            #dilate_iteration_s = [0, 2, 5]
+            #viz_tech = ['occ', 'grad', 'exci']
             sw.visualize_all(
                 fileName_test_visu,
                 tech=viz_tech,
@@ -818,7 +793,9 @@ def siameseTrainer(siameseSolver,
                 topBlobName=topBlobName,
                 secondTopLayerName=secondTopLayerName,
                 secondTopBlobName=secondTopBlobName,
-                save_img=save_img)
+                save_img=save_img,
+                size_patch_s=size_patch_s,
+                dilate_iteration_s=dilate_iteration_s)
     elif visu == 0:
         print 'testing not implemented'
         #print "testing with ", pretrainedSiameseModel
