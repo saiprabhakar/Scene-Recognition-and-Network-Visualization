@@ -9,7 +9,6 @@ import sys
 import os
 os.environ['GLOG_minloglevel'] = '3'
 
-import argparse
 import numpy as np
 import cv2
 import datetime
@@ -20,7 +19,6 @@ warnings.filterwarnings("ignore", category=matplotlib.cbook.mplDeprecation)
 
 import pickle
 from ipdb import set_trace as debug
-import time as t
 import modifiedSiamese.helpers2 as h2
 import copy
 '''
@@ -31,7 +29,7 @@ given object detection and important region heat map.
 
 def load_image_name(fileName, class_adju):
     '''
-    load file names
+    Load file names
     '''
     with open(fileName) as f:
         lines = [line.rstrip('\n') for line in f]
@@ -47,7 +45,7 @@ def load_image_name(fileName, class_adju):
 
 def load_image_dets(filename):
     '''
-    load detections with format <class_name conf x1 x2 y1 y2>
+    Load detections with format <class_name conf x1 x2 y1 y2>
     '''
     with open(filename) as f:
         lines = [line.rstrip('\n') for line in f]
@@ -62,7 +60,7 @@ def load_image_dets(filename):
 
 def resize_dets(dets, im_target_size, initial_image_size):
     '''
-    resize dets from initial size to target size and round them off
+    Resize dets from initial size to target size and round them off
     to image size
     '''
     xscale = im_target_size / float(initial_image_size[1])
@@ -73,15 +71,59 @@ def resize_dets(dets, im_target_size, initial_image_size):
         dets[i][2][2] = int(dets[i][2][2] * yscale)
         dets[i][2][3] = int(dets[i][2][3] * yscale)
 
-        dets[i][2][0] = min(max(dets[i][2][0], 0.0), im_target_size)
-        dets[i][2][1] = min(max(dets[i][2][1], 0.0), im_target_size)
-        dets[i][2][2] = min(max(dets[i][2][2], 0.0), im_target_size)
-        dets[i][2][3] = min(max(dets[i][2][3], 0.0), im_target_size)
-
+        dets[i][2][0] = min(max(dets[i][2][0], 0.0), im_target_size - 1)
+        dets[i][2][1] = min(max(dets[i][2][1], 0.0), im_target_size - 1)
+        dets[i][2][2] = min(max(dets[i][2][2], 0.0), im_target_size - 1)
+        dets[i][2][3] = min(max(dets[i][2][3], 0.0), im_target_size - 1)
     return dets
 
 
+def find_imp_overlap(dets, heat_mask):
+    '''
+  Find the overlap with the heat_mask
+  '''
+    overlaps = np.zeros(len(dets))
+    for i in range(len(dets)):
+        x1, x2, y1, y2 = dets[i][2]
+        det_imp_map = heat_mask[x1:x2, y1:y2]
+        overlap = det_imp_map.sum() / float(det_imp_map.size)
+        overlaps[i] = overlap
+    return overlaps
+
+
+def find_relevant_dets(dets, overlaps, thres_overlap, thres_conf):
+    '''
+  Finds relevant detections.
+  For each detection have confidence greater than thres_conf
+  and if the overlap is greater than thres_overlap it is a
+  relevant dets.
+  '''
+    rel_dets = []
+    for i in range(len(dets)):
+        if overlaps[i] > thres_overlap:
+            if dets[i][1] > thres_conf:
+                rel_dets.append(dets[i])
+    return rel_dets
+
+
+def describe_scene(rel_dets, class_id):
+    '''
+    Describe the scene based on the labels of the rel_dets and
+    location of the labels
+    '''
+    description = 'In ' + class_id + ' because I can see '
+    for i in range(len(rel_dets)):
+        description += rel_dets[i][0] + " "
+
+    return description
+
+
 net = 'floor'
+kernel = np.ones((3, 3), np.uint8)
+dilate_iterations = 2
+importance_ratio = 0.25
+thres_overlap = 0.3
+thres_conf = 0.0
 
 if net == 'floor':
     fileName_test_visu = 'imagelist_all_test.txt'
@@ -91,13 +133,14 @@ if net == 'floor':
     initial_image_size = (768, 1024)  #rows, cols
     im_obj_det_suf = '_dets.txt'
     visu_file_suf = '--M-nSize-1000-tstamp---visualizations' + '.pickle'
+    class_ids = [''] * 6  #TODO get actual label from file
 
-#img directory
+#Img directory
 img_data_dir = 'data/data_' + net + '/'
 img_data_list = img_data_dir + fileName_test_visu
-#object detec direc
+#Object detec direc
 img_obj_dets_dir = 'data/data_yolo_' + net + '/'
-#importance heat map direc
+#Importance heat map direc
 img_imp_dir = 'visu/' + net + '_NetResults_visu_n_/'
 
 imlist, imageDict = load_image_name(img_data_list, class_adju)
@@ -108,18 +151,34 @@ for im1 in range(len(imlist)):
     im = h2._load_image(
         img_name=img_data_dir + imlist[im1], im_target_size=im_target_size)
 
-    #get heat map
+    #Get heat map
     visu_file = img_imp_dir + imlist[im1].split('.')[0] + visu_file_suf
-    #print "visu file", visu_file
     with open(visu_file) as f:
         im_name, class_index, tech_s, size_patch_s, outputBlobName, outputLayerName, dilate_iteration_s, heat_map_raw_occ_s, heat_map_raw_grad_s, heat_map_raw_exci_s = pickle.load(
             f)
+    heat_map_raw = heat_map_raw_grad_s[0]
 
-    #get object detections
+    #Get object detections
     det_file = img_obj_dets_dir + imlist[im1].split('.')[0] + im_obj_det_suf
-    #print "det file", det_file
     dets = load_image_dets(det_file)
     dets = resize_dets(copy.deepcopy(dets), im_target_size, initial_image_size)
 
-    #TODO find relevent dets
-    #TODO convert to sentence
+    #Dilate heat map (good for gradient based visualizations)
+    if dilate_iterations > 0:
+        heat_map_raw = cv2.dilate(
+            heat_map_raw, kernel, iterations=dilate_iterations)
+    #Find heat_mask from heat_map
+    threshold = h2._find_threshold(heat_map_raw, ratio=importance_ratio)
+    heat_mask = np.zeros(heat_map_raw.shape)
+    heat_mask[heat_map_raw < threshold] = 0
+    heat_mask[heat_map_raw >= threshold] = 1
+
+    #Find relevent dets
+    overlaps = find_imp_overlap(dets, heat_mask)
+    rel_dets = find_relevant_dets(dets, overlaps, thres_overlap, thres_conf)
+
+    #Convert to sentence
+    #TODO find the predicted class id
+    description = describe_scene(rel_dets, class_ids[0])
+    print description
+    debug()
