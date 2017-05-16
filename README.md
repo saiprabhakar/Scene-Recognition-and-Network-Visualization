@@ -46,8 +46,20 @@ Methods considered:
 
   1. Occulsion heat map (siamese and modified siamese net)
   2. Class Saliency map (modified siamese net)
+  3. Excitation backprop (modified siamese net)
+
+Visualization evaluation Metrics:
+  
+  1. ACG
+  2. CCG
+  
+Scripts Used:
+1. To train modified siamese use 'trainModifiedSiamese.py -> modifiedSiamese/SiameseTrainer.py'
+2. To visualize any network use 'visuModels.py -> modifiedSiamese/SiameseTrainer.py'
+3. To analyse visualized files (metrics) use 'visuModels.py -> modifiedSiamese/analyse_visu.py'
+4. To find average metrics generate metrics from 'visuModels.py -> modifiedSiamese/analyse_visu.py' and then use 'analyse_files.py'
+5. To generate images for the paper 'gen_img.py -> modifiedSiamese/gen_images.py'
+6. To generate heatmaps for a specific setting use 'visuScene.py -> modifiedSiamese/SiameseTrainer.py'
+7. To explain scene generate object detection from 'yolo900', generate scene visualization heatmap from 'visuModels.py -> modifiedSiamese/SiameseTrainer.py' or 'visuScene.py -> modifiedSiamese/SiameseTrainer.py', then use 'explainScene.py'
 
 
-# to train modified siamese use trainModifiedSiamese.py -> modifiedSiamese/SiameseTrainer.py
-# to visualize any network use visuModels.py -> modifiedSiamese/SiameseTrainer.py
-# to analyse visualized files use visuModels.py -> modifiedSiamese/analyse_visu.py
