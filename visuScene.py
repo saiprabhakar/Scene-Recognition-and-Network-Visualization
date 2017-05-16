@@ -11,7 +11,8 @@ Script to generate visualization using a specif tech (this is a compressed versi
 
 v = 1
 #net = "floor"
-net = "places"
+#net = "places"
+net = "rand"
 tech = 'both'
 save_data = 1
 save_img = 1
@@ -40,6 +41,31 @@ if net == "floor":
     class_size = 6
     class_adju = 2
     data_folder = 'data/data_floor/'
+    im_target_size = 227
+    final_layer = 'fc9_f'  #final_layer
+    data_index = ''
+    outputLayerName = 'pool2'
+    outputBlobName = 'pool2'
+    #outputLayerName = 'conv2'
+    #outputBlobName = 'conv2'
+    topBlobName = 'fc9_f'
+    topLayerName = 'fc9_f'
+    secondTopLayerName = 'fc8_s'
+    secondTopBlobName = 'fc8_s_r'
+
+if net == "rand":
+    netSize = 1000
+    test_prototxt0 = 'modifiedSiameseModels/extracted_siamesePlaces_' + str(
+        netSize) + '_test.prototxt'
+    test_prototxt1 = [
+    ]  #'modifiedSiameseModels/grad_visu_extracted_siamesePlaces_' + str(
+    #netSize) + '_test.prototxt'
+    meanfile = 'placesOriginalModel/places205CNN_mean.binaryproto'
+    trainedModel = 'modifiedNetResults/Modified-netsize-1000-epoch-18-tstamp--Timestamp-2017-01-22-20:02:03-net.caffemodel'
+    fileName_test_visu = 'data/data_rand/imagelist_all.txt'
+    class_size = 6
+    class_adju = 2
+    data_folder = 'data/data_rand/'
     im_target_size = 227
     final_layer = 'fc9_f'  #final_layer
     data_index = ''
