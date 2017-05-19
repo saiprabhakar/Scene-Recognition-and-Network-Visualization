@@ -10,7 +10,7 @@ from modifiedSiamese.analyse_vis import *
 #to visualize toggle train and visu
 #to test toggle only train
 #to save all the possible masks of visualization use visu_all_pos and visu
-v = 0
+v = 1
 #net = "floor"
 net = "places"
 tech = 'both'
@@ -27,15 +27,18 @@ else:
     analyse_all_visualizations = 1
 
 heat_mask_ratio = 0.05
-
+test_prototxt0 = None
+test_prototxt1 = None
+viz_tech = ['occ', 'grad', 'exci']
 if net == "floor":
     netSize = 1000
-    test_prototxt0 = 'modifiedSiameseModels/extracted_siamesePlaces_' + str(
-        netSize) + '_test.prototxt'
-    test_prototxt1 = [
-    ]  #'modifiedSiameseModels/grad_visu_extracted_siamesePlaces_' + str(
-    #netSize) + '_test.prototxt'
-    meanfile = 'placesOriginalModel/places205CNN_mean.binaryproto'
+    if 'occ' in viz_tech or 'exci' in viz_tech:
+        test_prototxt0 = 'modifiedSiameseModels/extracted_siamesePlaces_' + str(
+            netSize) + '_test.prototxt'
+    if 'grad' in viz_tech:
+        test_prototxt1 = 'modifiedSiameseModels/grad_visu_extracted_siamesePlaces_' + str(
+            netSize) + '_test.prototxt'
+        meanfile = 'placesOriginalModel/places205CNN_mean.binaryproto'
     trainedModel = 'modifiedNetResults/Modified-netsize-1000-epoch-18-tstamp--Timestamp-2017-01-22-20:02:03-net.caffemodel'
     fileName_test_visu = 'data/data_floor/imagelist_all.txt'
     class_size = 6
@@ -55,9 +58,10 @@ if net == "floor":
 
 elif net == "places":
     netSize = 1000
-    test_prototxt0 = 'placesOriginalModel/deploy_alexnet_places365.prototxt'
-    test_prototxt1 = [
-    ]  #'placesOriginalModel/grad_visu_deploy_alexnet_places365.prototxt'
+    if 'occ' in viz_tech or 'exci' in viz_tech:
+        test_prototxt0 = 'placesOriginalModel/deploy_alexnet_places365.prototxt'
+    if 'grad' in viz_tech:
+        test_prototxt1 = 'placesOriginalModel/grad_visu_deploy_alexnet_places365.prototxt'
     meanfile = 'placesOriginalModel/places365CNN_mean.binaryproto'
     trainedModel = 'placesOriginalModel/alexnet_places365.caffemodel'  #None
     data_index = ''
@@ -102,7 +106,7 @@ if visu == 1:
         compare = 1
     size_patch_s = [10, 50, 100]
     dilate_iteration_s = [0, 2, 5]
-    tech = ['occ', 'grad', 'exci']
+    tech = viz_tech
 elif analyse_all_visualizations == 1:
     # loading test prototype for analysis
     pretrainedSiameseModel = trainedModel

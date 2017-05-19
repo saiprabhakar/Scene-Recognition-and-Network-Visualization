@@ -73,10 +73,24 @@ class SiameseTrainWrapper(object):
 
             self.solver.test_nets[0].share_with(self.solver.net)
         elif visu == 1:
-            assert testProto != None
+            #assert testProto != None
             assert pretrainedSiameseModel != None
-            self.siameseTestNet = caffe.Net(testProto, pretrainedSiameseModel,
-                                            caffe.TEST)
+            #if self.viz_tech == 'occ' or self.viz_tech == 'both':
+            #self.siameseTestNet = caffe.Net(
+            #testProto, pretrainedSiameseModel, caffe.TEST)
+            #if self.viz_tech == 'grad':
+            #self.siameseTestNet_grad = caffe.Net(
+            #testProto, pretrainedSiameseModel, caffe.TEST)
+            #if self.viz_tech == 'both':
+            #assert testProto1 != None
+            #self.siameseTestNet_grad = caffe.Net(
+            #testProto1, pretrainedSiameseModel, caffe.TEST)
+            if testProto != None:
+                self.siameseTestNet = caffe.Net(
+                    testProto, pretrainedSiameseModel, caffe.TEST)
+            if testProto1 != None:
+                self.siameseTestNet_grad = caffe.Net(
+                    testProto1, pretrainedSiameseModel, caffe.TEST)
 
         else:
             assert testProto != None
@@ -706,12 +720,13 @@ class SiameseTrainWrapper(object):
         caffeLabel = np.zeros((1, self.class_size))
         caffeLabel[0, label_index] = 1
 
-        pred = self.siameseTestNet.forward(data=blobs['data'].astype(
+        pred = self.siameseTestNet_grad.forward(data=blobs['data'].astype(
             np.float32, copy=True))
-        bw = self.siameseTestNet.backward(
-            **{self.siameseTestNet.outputs[0]: caffeLabel})  #
+        bw = self.siameseTestNet_grad.backward(
+            **{self.siameseTestNet_grad.outputs[0]: caffeLabel})  #
         diff = bw['data'].copy()
 
+        #debug()
         # Find the saliency map as described in the paper. Normalize the map and assign it to variabe "saliency"
         diff = np.abs(diff)
         diff -= diff.min()
