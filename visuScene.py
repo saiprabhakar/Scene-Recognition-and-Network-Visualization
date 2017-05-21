@@ -13,7 +13,8 @@ Script to generate visualization using a specif tech (this is a compressed versi
 '''
 
 
-def generate_visualizations(dataset, viz_tech):
+def generate_visualizations(dataset, viz_tech, fileName_test_visu, data_folder,
+                            visu_all_save_dir):
 
     v = 1
     #net = "floor"
@@ -32,6 +33,7 @@ def generate_visualizations(dataset, viz_tech):
     test_prototxt0 = None
     test_prototxt1 = None
     #Note use the grad prototxt file shouldnt have any softmax
+
     if net == "floor":
         netSize = 1000
         if 'occ' in viz_tech or 'exci' in viz_tech:
@@ -42,13 +44,10 @@ def generate_visualizations(dataset, viz_tech):
                 netSize) + '_test.prototxt'
         meanfile = 'placesOriginalModel/places205CNN_mean.binaryproto'
         trainedModel = 'modifiedNetResults/Modified-netsize-1000-epoch-18-tstamp--Timestamp-2017-01-22-20:02:03-net.caffemodel'
-        fileName_test_visu = 'data/data_floor/imagelist_all.txt'
         class_size = 6
         class_adju = 2
-        data_folder = 'data/data_floor/'
         im_target_size = 227
         final_layer = 'fc9_f'  #final_layer
-        data_index = ''
         outputLayerName = 'pool2'
         outputBlobName = 'pool2'
         #outputLayerName = 'conv2'
@@ -66,11 +65,8 @@ def generate_visualizations(dataset, viz_tech):
             test_prototxt1 = 'placesOriginalModel/grad_visu_deploy_alexnet_places365.prototxt'
         meanfile = 'placesOriginalModel/places365CNN_mean.binaryproto'
         trainedModel = 'placesOriginalModel/alexnet_places365.caffemodel'  #None
-        data_index = ''
-        fileName_test_visu = 'data/data_places/images_all' + data_index + '.txt'
         class_size = 365
         class_adju = 0
-        data_folder = 'data/data_places/val_256/'
         im_target_size = 227
         final_layer = 'fc8'  #final_layer
         outputLayerName = 'pool2'
@@ -91,13 +87,10 @@ def generate_visualizations(dataset, viz_tech):
 
         meanfile = 'placesOriginalModel/places205CNN_mean.binaryproto'
         trainedModel = 'modifiedNetResults/Modified-netsize-1000-epoch-18-tstamp--Timestamp-2017-01-22-20:02:03-net.caffemodel'
-        fileName_test_visu = 'data/data_' + net + '/imagelist_all.txt'
         class_size = 6
         class_adju = 2
-        data_folder = 'data/data_' + net + '/'
         im_target_size = 227
         final_layer = 'fc9_f'  #final_layer
-        data_index = ''
         outputLayerName = 'pool2'
         outputBlobName = 'pool2'
         #outputLayerName = 'conv2'
@@ -119,7 +112,6 @@ def generate_visualizations(dataset, viz_tech):
     # mkdir <net>_NetResults_visu_grad/occ
     #save dir is used by cam too
     #TODO create folders if doesnt exist
-    visu_all_save_dir = "visu/" + net + '_NetResults_visu_n_' + data_index
     if save_data and os.path.isdir(visu_all_save_dir) == False:
         os.system('mkdir ' + visu_all_save_dir)
     if save_img:
@@ -178,4 +170,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset', help='foo help')
     args = parser.parse_args()
-    generate_visualizations(dataset=args.dataset, viz_tech=['grad'])
+    fileName_test_visu = 'data/data_floor/imagelist_all.txt'
+    data_folder = 'data/data_floor/'
+    visu_all_save_dir = "visu/" + args.dataset + '_NetResults_visu_n_'
+    generate_visualizations(args.dataset, ['grad'], fileName_test_visu,
+                            data_folder, visu_all_save_dir)
