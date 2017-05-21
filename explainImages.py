@@ -1,9 +1,15 @@
+# --------------------------------------------------------
+# floor_recog
+# Written by Sai Prabhakar
+# CMU-RI Masters
+# --------------------------------------------------------
+
 import sys
 import os
 os.environ['GLOG_minloglevel'] = '3'
 from ipdb import set_trace as debug
 
-from explainScene import describe_dataset
+from sceneDescription.explainScene import describe_dataset
 from visuScene import generate_visualizations
 
 
@@ -72,13 +78,13 @@ def describe_all_images(dataset, fileName, data_file, yolo_thresh,
 
 if __name__ == '__main__':
     #data config
-    dataset = 'places'
-    datafile = 'val_256/'
-    fileName = 'imagelist_all1.txt'
+    dataset = 'floor'
+    datafile = ''
+    fileName = 'imagelist_all.txt'
 
     #yolo config
     yolo_thresh = 0.1
-    yolo_hier_thresh = 0.3
+    yolo_hier_thresh = 0.7
 
     #visu config
     dilate_iterations = 2
@@ -88,6 +94,9 @@ if __name__ == '__main__':
     #description config
     thres_overlap = 0.3
     thres_conf = 0.0
+
+    if dataset == 'places':
+        datafile = 'val_265/'
 
     describe_all_images(dataset, fileName, datafile, yolo_thresh,
                         yolo_hier_thresh, viz_tech, dilate_iterations,

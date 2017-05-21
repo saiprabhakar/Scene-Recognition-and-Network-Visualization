@@ -210,8 +210,8 @@ if __name__ == '__main__':
     img_imp_dir = 'visu/' + net + '_NetResults_visu_n_/'
     img_data_list = img_data_dir + fileName_test_visu
     dilate_iterations = 2
-    importance_ratio = 0.25
-    thres_overlap = 0.3
+    importance_ratio = 0.5
+    thres_overlap = 0.01
     thres_conf = 0.0
 
     describe_dataset(net, img_data_list, img_data_dir, img_obj_dets_dir,
