@@ -94,16 +94,31 @@ def find_imp_overlap(dets, heat_mask):
 
 def find_relevant_dets(dets, overlaps, thres_overlap, thres_conf):
     '''
-  Finds relevant detections.
-  For each detection have confidence greater than thres_conf
-  and if the overlap is greater than thres_overlap it is a
-  relevant dets.
-  '''
+    Finds relevant detections.
+    For each detection have confidence greater than thres_conf
+    and if the overlap is greater than thres_overlap it is a
+    relevant dets.
+    '''
+    #TODO replace these by semantics
     rel_dets = []
+    ignore_id = ['home appliance', 'living thing', 'container', 'artifact',
+                 'person', 'conveyance', 'bottle', 'instrumentality', 'whole']
+    group_id = [['chair', 'seat'], ['furnishing', 'furniture']]
+
+    group_dict = {}
+    for i in range(len(group_id)):
+        for j in range(len(group_id[i])):
+            group_dict[group_id[i][j]] = group_id[i][0]
+
     for i in range(len(dets)):
-        if overlaps[i] > thres_overlap:
-            if dets[i][1] > thres_conf:
-                rel_dets.append(dets[i])
+        if dets[i][0] not in ignore_id:
+            if overlaps[i] > thres_overlap:
+                if dets[i][1] > thres_conf:
+                    t_det = dets[i]
+                    if len(t_det) > 0:
+                        t_det[0] = group_dict[t_det[0]] if (
+                            t_det[0] in group_dict) else t_det[0]
+                    rel_dets.append(t_det)
     return rel_dets
 
 
@@ -121,7 +136,49 @@ def describe_scene(rel_dets, class_id):
 
 def describe_dataset(dataset, img_data_list, img_data_dir, img_obj_dets_dir,
                      img_imp_dir, dilate_iterations, importance_ratio,
-                     thres_overlap, thres_conf):
+                     thres_overlap, thres_conf, is_sub_scene):
+
+    if dataset == "places":
+        #fileName_test_visu = 'images_all.txt'
+        class_size = 365
+        class_adju = 0
+        im_target_size = 227
+        initial_image_size = (256, 256)  #rows, cols
+        class_ids = [''] * 6  #TODO get actual label from file
+    else:
+        #fileName_test_visu = 'imagelist_all.txt'
+        class_size = 6
+        class_adju = 2
+        im_target_size = 227
+        initial_image_size = (768, 1024)  #rows, cols
+        class_ids = [''] * 6  #TODO get actual label from file
+
+    imlist, imageDict = load_image_name(img_data_list, class_adju)
+
+    rel_dets_all = get_features_dataset(
+        dataset, img_data_list, img_data_dir, img_obj_dets_dir, img_imp_dir,
+        dilate_iterations, importance_ratio, thres_overlap, thres_conf,
+        class_ids, imlist, imageDict, im_target_size, initial_image_size)
+
+    if is_sub_scene:
+        #TODO get features
+        #TODO find difference between classes
+        get_class_features(rel_dets_all, imlist, imageDict)
+    else:
+        for im1 in range(len(imlist)):
+            print 'explaning -', imageDict[imlist[im1]], imlist[im1]
+            #debug()
+            #Convert to sentence
+            #TODO find the predicted class name
+            description = describe_scene(rel_dets_all[im1], class_ids[0])
+            print description
+            #debug()
+
+
+def get_features_dataset(
+        dataset, img_data_list, img_data_dir, img_obj_dets_dir, img_imp_dir,
+        dilate_iterations, importance_ratio, thres_overlap, thres_conf,
+        class_ids, imlist, imageDict, im_target_size, initial_image_size):
     net = dataset  #'floor'
     kernel = np.ones((3, 3), np.uint8)
     #dilate_iterations = 2
@@ -130,22 +187,7 @@ def describe_dataset(dataset, img_data_list, img_data_dir, img_obj_dets_dir,
     #thres_conf = 0.0
     visu_file_suf = '--M-nSize-1000-tstamp---visualizations' + '.pickle'
     im_obj_det_suf = '_dets.txt'
-
-    if net == "places":
-        #fileName_test_visu = 'images_all.txt'
-        class_size = 365
-        class_adju = 0
-        im_target_size = 227
-        initial_image_size = (256, 256)  #rows, cols
-        class_ids = [''] * 6  #TODO get actual label from file
-
-    else:
-        #fileName_test_visu = 'imagelist_all.txt'
-        class_size = 6
-        class_adju = 2
-        im_target_size = 227
-        initial_image_size = (768, 1024)  #rows, cols
-        class_ids = [''] * 6  #TODO get actual label from file
+    rel_dets_all = []
 
     #Img directory
     #img_data_dir = 'data/data_' + net + '/'
@@ -155,10 +197,7 @@ def describe_dataset(dataset, img_data_list, img_data_dir, img_obj_dets_dir,
     #Importance heat map direc
     #img_imp_dir = 'visu/' + net + '_NetResults_visu_n_/'
 
-    imlist, imageDict = load_image_name(img_data_list, class_adju)
-
     for im1 in range(len(imlist)):
-        print 'explaning -', imageDict[imlist[im1]], imlist[im1]
 
         im = h2._load_image(
             img_name=img_data_dir + imlist[im1], im_target_size=im_target_size)
@@ -191,12 +230,73 @@ def describe_dataset(dataset, img_data_list, img_data_dir, img_obj_dets_dir,
         overlaps = find_imp_overlap(dets, heat_mask)
         rel_dets = find_relevant_dets(dets, overlaps, thres_overlap,
                                       thres_conf)
+        rel_dets_all.append(rel_dets)
+    return rel_dets_all
 
-        #Convert to sentence
-        #TODO find the predicted class id
-        description = describe_scene(rel_dets, class_ids[0])
-        print description
-        #debug()
+
+def get_features(rel_dets_all):
+    '''
+    Get trainable features
+    '''
+    obj_next = 0
+    obj_dict = {}
+    no_regions = 4
+    feats_all = []
+    im_target_size = 227
+    for i in range(len(rel_dets_all)):
+        feats = []
+        for dets in rel_dets_all[i]:
+            if dets[0] not in obj_dict:
+                obj_dict[dets[0]] = obj_next
+                obj_next += 1
+            obj_id = obj_dict[dets[0]]
+            obj_x = (dets[2][0] + dets[2][1]) * 0.5
+            obj_y = (dets[2][2] + dets[2][3]) * 0.5
+
+            obj_x_id = int(obj_x / (im_target_size / no_regions))
+            obj_y_id = int(obj_y / (im_target_size / no_regions))
+            feats.append([obj_id, obj_x_id, obj_y_id])
+        feats = find_unique(feats)
+        feats_all.append(feats)
+
+    return obj_dict, feats_all
+
+
+def find_unique(feats):
+    '''
+    find unique elements in list of list
+    '''
+    f = [tuple(i) for i in feats]
+    f = [list(i) for i in set(f)]
+    return f
+
+
+def find_intersection(feat_1, feat_2):
+    '''
+    Find intersection between 2 list of list feats
+    '''
+    #TODO either change the fn name to finding union or change the logic used in the function
+    feat_1_t = [tuple(i) for i in feat_1]
+    feat_2_t = [tuple(i) for i in feat_2]
+    #inter_feat = set(feat_1_t).intersection(feat_2_t)
+    inter_feat = find_unique(feat_1_t + feat_2_t)
+    return inter_feat
+
+
+def get_class_features(rel_dets_all, imlist, imageDict):
+    obj_dict, feats_all = get_features(rel_dets_all)
+    class_feat_all = {}  #[[]]*len(set(obj_dict.values()))
+    for i in range(len(imlist)):
+        class_id = imageDict[imlist[i]]
+        if class_id in class_feat_all:
+            class_feat_t = class_feat_all[class_id]
+            #TODO instead of intersection find most common ones among all the images belonging to the same class
+            class_feat = find_intersection(class_feat_t, feats_all[i])
+        else:
+            #debug()
+            class_feat = feats_all[i]
+        class_feat_all[class_id] = class_feat
+    debug()
 
 
 if __name__ == '__main__':
