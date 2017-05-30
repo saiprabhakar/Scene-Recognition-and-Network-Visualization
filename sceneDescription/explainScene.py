@@ -81,8 +81,8 @@ def resize_dets(dets, im_target_size, initial_image_size):
 
 def find_imp_overlap(dets, heat_mask):
     '''
-  Find the overlap with the heat_mask
-  '''
+    Find the overlap with the heat_mask
+    '''
     overlaps = np.zeros(len(dets))
     for i in range(len(dets)):
         x1, x2, y1, y2 = dets[i][2]
@@ -101,8 +101,9 @@ def find_relevant_dets(dets, overlaps, thres_overlap, thres_conf):
     '''
     #TODO replace these by semantics
     rel_dets = []
-    ignore_id = ['home appliance', 'living thing', 'container', 'artifact',
-                 'person', 'conveyance', 'bottle', 'instrumentality', 'whole']
+    ignore_id = ['living thing', 'person']
+    #ignore_id = ['home appliance', 'living thing', 'container', 'artifact',
+    #             'person', 'conveyance', 'bottle', 'instrumentality', 'whole']
     group_id = [['chair', 'seat'], ['furnishing', 'furniture']]
 
     group_dict = {}
@@ -144,33 +145,50 @@ def describe_dataset(dataset, img_data_list, img_data_dir, img_obj_dets_dir,
         class_adju = 0
         im_target_size = 227
         initial_image_size = (256, 256)  #rows, cols
-        class_ids = [''] * 6  #TODO get actual label from file
+        class_names = [''] * 6  #TODO get actual label from file
     else:
         #fileName_test_visu = 'imagelist_all.txt'
         class_size = 6
         class_adju = 2
         im_target_size = 227
         initial_image_size = (768, 1024)  #rows, cols
-        class_ids = [''] * 6  #TODO get actual label from file
+        class_names = ['3rd floor', '4rd floor', '5rd floor', '6rd floor',
+                       '7rd floor', '8rd floor'
+                       ]  # [''] * 6  #TODO get actual label from file
 
     imlist, imageDict = load_image_name(img_data_list, class_adju)
 
     rel_dets_all = get_features_dataset(
         dataset, img_data_list, img_data_dir, img_obj_dets_dir, img_imp_dir,
         dilate_iterations, importance_ratio, thres_overlap, thres_conf,
-        class_ids, imlist, imageDict, im_target_size, initial_image_size)
+        class_names, imlist, imageDict, im_target_size, initial_image_size)
 
     if is_sub_scene:
-        #TODO get features
-        #TODO find difference between classes
-        get_class_features(rel_dets_all, imlist, imageDict)
+        obj_dict, feats_all = get_number_features(rel_dets_all)
+        use_d_tree = 1
+        if use_d_tree == 0:
+            #Get class features
+            class_feat_all = get_class_features(obj_dict, feats_all, imlist,
+                                                imageDict)
+            #TODO find difference between classes
+            class_uni_feat_all = get_unique_class_features(class_feat_all,
+                                                           class_names)
+            debug()
+        else:
+            #Get complete features
+            feats_comp_all, feats_y, feat_list = create_complete_feat(
+                feats_all, imlist, imageDict)
+            #Build tree
+            d_tree = create_tree(feats_comp_all,
+                                 feats_y)  #rel_dets_all, imlist, imageDict)
+            print_tree(d_tree, feat_list, obj_dict, class_names)
     else:
         for im1 in range(len(imlist)):
             print 'explaning -', imageDict[imlist[im1]], imlist[im1]
             #debug()
             #Convert to sentence
             #TODO find the predicted class name
-            description = describe_scene(rel_dets_all[im1], class_ids[0])
+            description = describe_scene(rel_dets_all[im1], class_names[0])
             print description
             #debug()
 
@@ -178,7 +196,7 @@ def describe_dataset(dataset, img_data_list, img_data_dir, img_obj_dets_dir,
 def get_features_dataset(
         dataset, img_data_list, img_data_dir, img_obj_dets_dir, img_imp_dir,
         dilate_iterations, importance_ratio, thres_overlap, thres_conf,
-        class_ids, imlist, imageDict, im_target_size, initial_image_size):
+        class_names, imlist, imageDict, im_target_size, initial_image_size):
     net = dataset  #'floor'
     kernel = np.ones((3, 3), np.uint8)
     #dilate_iterations = 2
@@ -234,7 +252,7 @@ def get_features_dataset(
     return rel_dets_all
 
 
-def get_features(rel_dets_all):
+def get_number_features(rel_dets_all):
     '''
     Get trainable features
     '''
@@ -256,13 +274,13 @@ def get_features(rel_dets_all):
             obj_x_id = int(obj_x / (im_target_size / no_regions))
             obj_y_id = int(obj_y / (im_target_size / no_regions))
             feats.append([obj_id, obj_x_id, obj_y_id])
-        feats = find_unique(feats)
+        feats = find_union(feats)
         feats_all.append(feats)
 
     return obj_dict, feats_all
 
 
-def find_unique(feats):
+def find_union(feats):
     '''
     find unique elements in list of list
     '''
@@ -279,12 +297,14 @@ def find_intersection(feat_1, feat_2):
     feat_1_t = [tuple(i) for i in feat_1]
     feat_2_t = [tuple(i) for i in feat_2]
     #inter_feat = set(feat_1_t).intersection(feat_2_t)
-    inter_feat = find_unique(feat_1_t + feat_2_t)
+    inter_feat = find_union(feat_1_t + feat_2_t)
     return inter_feat
 
 
-def get_class_features(rel_dets_all, imlist, imageDict):
-    obj_dict, feats_all = get_features(rel_dets_all)
+def get_class_features(obj_dict, feats_all, imlist, imageDict):
+    '''
+    Get class features
+    '''
     class_feat_all = {}  #[[]]*len(set(obj_dict.values()))
     for i in range(len(imlist)):
         class_id = imageDict[imlist[i]]
@@ -296,7 +316,114 @@ def get_class_features(rel_dets_all, imlist, imageDict):
             #debug()
             class_feat = feats_all[i]
         class_feat_all[class_id] = class_feat
-    debug()
+
+    return class_feat_all
+
+
+def create_complete_feat(feats_all, imlist, imageDict):
+    '''
+    Create complete features and secondary feature dictionary
+    '''
+    feats = [f for feat in feats_all for f in feat]
+    feat_list = list(set([tuple(f) for f in feats]))
+    feat_list = [list(f) for f in feat_list]
+    feats_comp_all = []
+    feats_y = []
+    for im, feat in zip(imlist, feats_all):
+        feat_t = np.zeros(len(feat_list))
+        for f in feat:
+            id_ = feat_list.index(f)
+            feat_t[id_] = 1
+        feats_comp_all.append(feat_t)
+        feats_y.append(imageDict[im])
+    return feats_comp_all, feats_y, feat_list
+
+
+def create_tree(feats_comp_all, feats_y):
+    '''
+    Find features and build tree
+    '''
+    #TODO
+    from sklearn import tree
+    d_t = tree.DecisionTreeClassifier()
+    d_t = d_t.fit(feats_comp_all, feats_y)
+
+    #for feats in zip(feats_comp_all, feats_y):
+    #    d_t.predict(
+    feats_y_p = d_t.predict(feats_comp_all)
+    print "actual and predicted labels"
+    print feats_y
+    print feats_y_p
+    return d_t
+
+
+def print_tree(d_t, feat_list, obj_dict, class_names):
+    '''
+    Visualize decision tree
+    '''
+    from sklearn import tree
+    import pydotplus
+    from cStringIO import StringIO
+    import matplotlib.pyplot as plt
+    import matplotlib.image as mpimg
+
+    #create feature names
+    feat_names = []
+    for f in feat_list:
+        obj_name = obj_dict.keys()[obj_dict.values().index(f[2])]
+        s_ = str(f[0]) + "-" + str(f[1]) + ":" + obj_name
+        feat_names.append(s_)
+
+    #build graph
+    dot_data = tree.export_graphviz(
+        d_t,
+        out_file=None,
+        feature_names=feat_names,
+        class_names=class_names,
+        filled=True,
+        rounded=True)
+    graph = pydotplus.graph_from_dot_data(dot_data)
+
+    #vizualize graph
+    png_str = graph.create_png(prog='dot')
+    sio = StringIO()
+    sio.write(png_str)
+    sio.seek(0)
+    img = mpimg.imread(sio)
+    fig = plt.gcf()
+    imgplot = plt.imshow(img, aspect='equal')
+    fig.set_size_inches(185, 105)
+    plt.savefig('decision-tree.png', dpi=100)
+    #plt.show()
+    #plt.show(block=False)
+
+
+def get_unique_class_features(class_feat_all, class_names):
+    '''
+    Get unique features for each class
+    '''
+    class_uni_feat_all = {}
+    for id1 in range(len(class_names)):
+        print "---------------- ", id1
+        print class_feat_all[id1]
+        feat_u = class_feat_all[id1]
+        for id2 in range(len(class_names)):
+            if id1 != id2:
+                print "*", id2
+                feat_u = find_unique(feat_u, class_feat_all[id2])
+                print feat_u
+        class_uni_feat_all[id1] = feat_u
+    return class_uni_feat_all
+
+
+def find_unique(f1, f2):
+    '''
+    Finds f1 - f2
+    '''
+    f1_t = [tuple(i) for i in f1]
+    f2_t = [tuple(i) for i in f2]
+    diff12 = [list(i) for i in set(f1_t) - set(f2_t)]
+    return diff12
 
 
 if __name__ == '__main__':
