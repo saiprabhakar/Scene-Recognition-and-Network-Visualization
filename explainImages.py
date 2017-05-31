@@ -11,6 +11,7 @@ from ipdb import set_trace as debug
 
 from sceneDescription.explainScene import *
 from visuScene import generate_visualizations
+from dataset_processor import *
 
 
 def create_yolo_filelist(fileName, img_data_dir, newFileName):
@@ -79,30 +80,31 @@ def describe_all_images(dataset, fileName_test, fileName_train, data_file,
     3. Generates explantions using the two
     '''
     use_spatial = 1
-
-    im_target_size = 227
+    class_size, class_adju, im_target_size, initial_image_size, class_names = get_data_prop(
+        dataset)
 
     #Get test feature
     fileName_visu_test, yolo_out_dir_test, img_data_dir_test, img_imp_dir_test = prepare_dataset(
         dataset, fileName_test, data_file, yolo_thresh, yolo_hier_thresh,
         viz_tech, dilate_iterations, importance_ratio, thres_overlap,
         thres_conf, do_yolo, do_vis)
-    rel_det_all_test, imlist_test, imageDict_test, class_name_test = get_rel_dets_dataset(
+    rel_det_all_test, imlist_test, imageDict_test = get_rel_dets_dataset(
         dataset, fileName_visu_test, img_data_dir_test,
         yolo_out_dir_test + '/', img_imp_dir_test, dilate_iterations,
-        importance_ratio, thres_overlap, thres_conf, is_sub_scene)
+        importance_ratio, thres_overlap, thres_conf, is_sub_scene, class_size,
+        class_adju, im_target_size, initial_image_size, class_names)
     if fileName_train != None:
         #Get train features
         fileName_visu_train, yolo_out_dir_train, img_data_dir_train, img_imp_dir_train = prepare_dataset(
             dataset, fileName_train, data_file, yolo_thresh, yolo_hier_thresh,
             viz_tech, dilate_iterations, importance_ratio, thres_overlap,
             thres_conf, do_yolo, do_vis)
-        rel_det_all_train, imlist_train, imageDict_train, class_name_train = get_rel_dets_dataset(
+        rel_det_all_train, imlist_train, imageDict_train = get_rel_dets_dataset(
             dataset, fileName_visu_train, img_data_dir_train,
             yolo_out_dir_train + '/', img_imp_dir_train, dilate_iterations,
-            importance_ratio, thres_overlap, thres_conf, is_sub_scene)
-    assert class_name_train == class_name_test
-    class_names = class_name_test
+            importance_ratio, thres_overlap, thres_conf, is_sub_scene,
+            class_size, class_adju, im_target_size, initial_image_size,
+            class_names)
 
     obj_next = 0
     obj_dict = {}
@@ -172,6 +174,7 @@ if __name__ == '__main__':
     datafile = ''
     fileName_test = 'imagelist_all_test.txt'
     fileName_train = 'imagelist_all.txt'
+    fileName = 'imagelist_all.txt'
     do_yolo = 0
     do_vis = 0
     is_sub_scene = 1
@@ -192,6 +195,8 @@ if __name__ == '__main__':
     if dataset == 'places':
         datafile = 'val_265/'
 
+    #TODO split dataset
+    fileName_test_, fileName_train_ = create_train_test_split(fileName, ratio)
     describe_all_images(dataset, fileName_test, fileName_train, datafile,
                         yolo_thresh, yolo_hier_thresh, viz_tech,
                         dilate_iterations, importance_ratio, thres_overlap,
