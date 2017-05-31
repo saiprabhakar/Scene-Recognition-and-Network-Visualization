@@ -46,7 +46,7 @@ def load_image_name(fileName, class_adju):
 
 def load_image_dets(filename):
     '''
-    Load detections with format <class_name conf x1 x2 y1 y2>
+    Load detections with format <object_name conf x1 x2 y1 y2>
     '''
     with open(filename) as f:
         lines = [line.rstrip('\n') for line in f]
@@ -54,8 +54,8 @@ def load_image_dets(filename):
     for i in lines:
         temp = i.split(' ')
         conf, x1, x2, y1, y2 = [float(x) for x in temp[-5:]]
-        class_name = ' '.join(temp[:-5])
-        dets.append([class_name, conf, [x1, x2, y1, y2]])
+        object_name = ' '.join(temp[:-5])
+        dets.append([object_name, conf, [x1, x2, y1, y2]])
     return dets
 
 
@@ -135,10 +135,13 @@ def describe_scene(rel_dets, class_id):
     return description
 
 
-def describe_dataset(dataset, img_data_list, img_data_dir, img_obj_dets_dir,
-                     img_imp_dir, dilate_iterations, importance_ratio,
-                     thres_overlap, thres_conf, is_sub_scene):
-
+def get_rel_dets_dataset(dataset, img_data_list, img_data_dir,
+                         img_obj_dets_dir, img_imp_dir, dilate_iterations,
+                         importance_ratio, thres_overlap, thres_conf,
+                         is_sub_scene):
+    '''
+    Get relevant detection for entire dataset
+    '''
     if dataset == "places":
         #fileName_test_visu = 'images_all.txt'
         class_size = 365
@@ -163,6 +166,14 @@ def describe_dataset(dataset, img_data_list, img_data_dir, img_obj_dets_dir,
         dilate_iterations, importance_ratio, thres_overlap, thres_conf,
         class_names, imlist, imageDict, im_target_size, initial_image_size)
 
+    return rel_dets_all, imlist, imageDict, class_names
+
+
+def classwise_features(rel_det_all, imlist, imageDict, class_name):
+    '''
+    Donot use this function
+    Only for reference
+    '''
     if is_sub_scene:
         obj_dict, feats_all = get_number_features(rel_dets_all)
         use_d_tree = 1
@@ -171,8 +182,7 @@ def describe_dataset(dataset, img_data_list, img_data_dir, img_obj_dets_dir,
             class_feat_all = get_class_features(obj_dict, feats_all, imlist,
                                                 imageDict)
             #TODO find difference between classes
-            class_uni_feat_all = get_unique_class_features(class_feat_all,
-                                                           class_names)
+            class_uni_feat_all = get_unique_class_features(class_feat_all)
             debug()
         else:
             #Get complete features
@@ -252,15 +262,15 @@ def get_features_dataset(
     return rel_dets_all
 
 
-def get_number_features(rel_dets_all):
+def get_number_features(rel_dets_all,
+                        no_regions,
+                        im_target_size,
+                        obj_next=0,
+                        obj_dict={}):
     '''
-    Get trainable features
+    Get trainable features of the form [obj_id, x, y]
     '''
-    obj_next = 0
-    obj_dict = {}
-    no_regions = 4
     feats_all = []
-    im_target_size = 227
     for i in range(len(rel_dets_all)):
         feats = []
         for dets in rel_dets_all[i]:
@@ -274,13 +284,13 @@ def get_number_features(rel_dets_all):
             obj_x_id = int(obj_x / (im_target_size / no_regions))
             obj_y_id = int(obj_y / (im_target_size / no_regions))
             feats.append([obj_id, obj_x_id, obj_y_id])
-        feats = find_union(feats)
+        feats = find_unique(feats)
         feats_all.append(feats)
 
-    return obj_dict, feats_all
+    return obj_dict, obj_next, feats_all
 
 
-def find_union(feats):
+def find_unique(feats):
     '''
     find unique elements in list of list
     '''
@@ -293,12 +303,21 @@ def find_intersection(feat_1, feat_2):
     '''
     Find intersection between 2 list of list feats
     '''
-    #TODO either change the fn name to finding union or change the logic used in the function
     feat_1_t = [tuple(i) for i in feat_1]
     feat_2_t = [tuple(i) for i in feat_2]
-    #inter_feat = set(feat_1_t).intersection(feat_2_t)
-    inter_feat = find_union(feat_1_t + feat_2_t)
-    return inter_feat
+    feat_f = set(feat_1_t).intersection(feat_2_t)
+    feat_f = [list(i) for i in set(feat_f)]
+    return feat_f
+
+
+def find_union(feat_1, feat_2):
+    '''
+    Find union between 2 list of list feats
+    '''
+    feat_1_t = [tuple(i) for i in feat_1]
+    feat_2_t = [tuple(i) for i in feat_2]
+    feat_f = find_unique(feat_1_t + feat_2_t)
+    return feat_f
 
 
 def get_class_features(obj_dict, feats_all, imlist, imageDict):
@@ -310,8 +329,8 @@ def get_class_features(obj_dict, feats_all, imlist, imageDict):
         class_id = imageDict[imlist[i]]
         if class_id in class_feat_all:
             class_feat_t = class_feat_all[class_id]
-            #TODO instead of intersection find most common ones among all the images belonging to the same class
-            class_feat = find_intersection(class_feat_t, feats_all[i])
+            #TODO instead of union try others like 1. intersection, 2. find most frequent ones
+            class_feat = find_union(class_feat_t, feats_all[i])
         else:
             #debug()
             class_feat = feats_all[i]
@@ -357,9 +376,21 @@ def create_tree(feats_comp_all, feats_y):
     return d_t
 
 
+def print_feat_list_list(feat_1, obj_dict):
+    '''
+    create feature names
+    '''
+    feat_names = []
+    for f in feat_1:
+        obj_name = obj_dict.keys()[obj_dict.values().index(f[0])]
+        s_ = str(f[1]) + "-" + str(f[2]) + ":" + obj_name
+        feat_names.append(s_)
+    return feat_names
+
+
 def print_tree(d_t, feat_list, obj_dict, class_names):
     '''
-    Visualize decision tree
+    Visualize decision tree, features are of the form [obj_id, x, y]
     '''
     from sklearn import tree
     import pydotplus
@@ -368,11 +399,7 @@ def print_tree(d_t, feat_list, obj_dict, class_names):
     import matplotlib.image as mpimg
 
     #create feature names
-    feat_names = []
-    for f in feat_list:
-        obj_name = obj_dict.keys()[obj_dict.values().index(f[2])]
-        s_ = str(f[0]) + "-" + str(f[1]) + ":" + obj_name
-        feat_names.append(s_)
+    feat_names = print_feat_list_list(feat_list, obj_dict)
 
     #build graph
     dot_data = tree.export_graphviz(
@@ -398,25 +425,27 @@ def print_tree(d_t, feat_list, obj_dict, class_names):
     #plt.show(block=False)
 
 
-def get_unique_class_features(class_feat_all, class_names):
+def get_unique_class_features(class_feat_all, print_=0):
     '''
     Get unique features for each class
     '''
     class_uni_feat_all = {}
-    for id1 in range(len(class_names)):
-        print "---------------- ", id1
-        print class_feat_all[id1]
+    for id1 in range(len(class_feat_all)):
+        if print_:
+            print "---------------- ", id1
+            print class_feat_all[id1]
         feat_u = class_feat_all[id1]
-        for id2 in range(len(class_names)):
+        for id2 in range(len(class_feat_all)):
             if id1 != id2:
-                print "*", id2
-                feat_u = find_unique(feat_u, class_feat_all[id2])
-                print feat_u
+                feat_u = find_diff(feat_u, class_feat_all[id2])
+                if print_:
+                    print "*", id2
+                    print feat_u
         class_uni_feat_all[id1] = feat_u
     return class_uni_feat_all
 
 
-def find_unique(f1, f2):
+def find_diff(f1, f2):
     '''
     Finds f1 - f2
     '''
